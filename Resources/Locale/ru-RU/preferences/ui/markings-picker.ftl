@@ -67,3 +67,29 @@ markings-layer-TailOverlay = Наложение
 
 markings-category-Hair = Волосы
 markings-category-FacialHair = Растительность на лице
+
+markings-used = Используемые метки
+markings-unused = Неиспользуемые метки
+markings-add = Добавить метку
+markings-remove = Убрать метку
+markings-rank-up = Вверх
+markings-rank-down = Вниз
+marking-points-remaining = Осталось меток: {$points}
+marking-used = {$marking-name}
+marking-used-forced = {$marking-name} (Принудительно)
+marking-slot-add = Добавить
+marking-slot-remove = Убрать
+marking-slot = Слот {$number}
+
+markings-category-Special = Особое
+markings-category-Head = Голова
+markings-category-HeadTop = Голова (Верх)
+markings-category-HeadSide = Голова (Бок)
+markings-category-Snout = Нос
+markings-category-UndergarmentTop = Нижняя рубашка
+markings-category-UndergarmentBottom = Трусы
+markings-category-Chest = Туловище
+markings-category-Arms = Руки
+markings-category-Legs = Ноги
+markings-category-Tail = Хвост
+markings-category-Overlay = Наложение
