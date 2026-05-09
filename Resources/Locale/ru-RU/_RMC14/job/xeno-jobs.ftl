@@ -68,3 +68,10 @@ cm-job-supervisors-queen = Королева
 role-timer-xeno-roles = Ксеноморфы
 role-timer-xeno-drones = дрон и эволюции дрона
 role-timer-xeno-tier-three = касты третьего уровня
+# TODO RMC14 end
+
+au-job-name-threat-leader = Лидер угрозы
+au-job-name-threat-member = Участник угрозы
+
+au-job-name-third-party-leader = Лидер третьей стороны
+au-job-name-third-party-member = Участник третьей стороны

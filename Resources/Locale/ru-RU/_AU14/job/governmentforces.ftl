@@ -127,3 +127,8 @@ au14-job-name-juniorofficer-adj = Адъютант
 au14-job-prefix-juniorofficer-adj = АДЪЮ
 au14-job-name-specialist-pyro = Пиротехник
 au14-job-prefix-specialist-pyro = ПИРО
+
+AU14JobGOVFORMilitaryPoliceMan = Военный полицейский
+au14-job-name-govformilitarypoliceman = Военный полицейский
+au14-job-description-govformilitarypoliceman = Обеспечивайте полицейскую поддержку своей фракции.
+au14-job-prefix-govformilitarypoliceman = ВП

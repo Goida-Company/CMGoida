@@ -52,3 +52,6 @@ ent-MindRoleCannibal-name = Роль Каннибала
 ent-MindRoleCannibal-desc = Mind Role entity
 ent-MindRoleSerialKiller-name = Роль Серийного Убийцы
 ent-MindRoleSerialKiller-desc = Mind Role entity
+
+au14-antag-category-colony-antags = Антагонисты колонии
+au14-antag-category-prometheus-antags = Антагонисты Прометея

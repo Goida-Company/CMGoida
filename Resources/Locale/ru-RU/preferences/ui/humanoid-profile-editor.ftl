@@ -33,6 +33,9 @@ humanoid-profile-editor-xeno-postfix-tooltip = 1 буква, если у вас 
 humanoid-profile-editor-enable = Включить
 humanoid-profile-editor-eyes-label = Цвет глаз:
 humanoid-profile-editor-jobs-tab = Должности
+humanoid-profile-editor-military-jobs-tab = Военные должности
+humanoid-profile-editor-threat-jobs-tab = Угрозы / Третьи стороны
+humanoid-profile-editor-civilian-jobs-tab = Гражданские должности
 humanoid-profile-editor-preference-unavailable-stay-in-lobby-button = Оставаться в лобби, если выбранная роль недоступна.
 humanoid-profile-editor-preference-unavailable-spawn-as-overflow-button = Стать {$overflowJob}, если выбранная роль недоступна.
 humanoid-profile-editor-preference-jumpsuit = Комбинезон
@@ -41,6 +44,10 @@ humanoid-profile-editor-preference-backpack = Рюкзак
 humanoid-profile-editor-preference-satchel = Сумка
 humanoid-profile-editor-preference-duffelbag = Спортивная сумка
 humanoid-profile-editor-guidebook-button-tooltip = Нажмите для дополнительной информации
+humanoid-profile-editor-origin-label = Происхождение:
+humanoid-profile-editor-origin-none = Нет
+humanoid-profile-editor-allegiance-label = Принадлежность:
+humanoid-profile-editor-allegiance-none = Нет
 
 # Spawn priority
 humanoid-profile-editor-preference-spawn-priority-none = Нет
@@ -70,3 +77,13 @@ humanoid-profile-editor-trait-count-hint = Доступные очки: [{$curre
 trait-category-disabilities = Инвалидности
 trait-category-speech = Речевые черты
 trait-category-quirks = Причуды
+
+# Предпочитаемая броня
+humanoid-profile-editor-preference-armor-random = Случайная
+humanoid-profile-editor-preference-armor-padded = С подкладкой
+humanoid-profile-editor-preference-armor-padless = Без подкладки
+humanoid-profile-editor-preference-armor-ridged = Ребристая
+humanoid-profile-editor-preference-armor-carrier = Разгрузочная
+humanoid-profile-editor-preference-armor-skull = С черепом
+humanoid-profile-editor-preference-armor-smooth = Гладкая
+
