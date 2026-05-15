@@ -84,16 +84,7 @@ public sealed class YautjaSpeciesTest
                 Assert.That(bloodstream.BloodReagent.Id, Is.EqualTo("CMUYautjaBlood"));
 
                 var mask = AssertEquipped(entMan, inventory, hunter, "mask", "CMUYautjaMask");
-                var armor = AssertEquippedAny(
-                    entMan,
-                    inventory,
-                    hunter,
-                    "outerClothing",
-                    "CMUYautjaClanArmor",
-                    "CMUYautjaClanArmorBronze",
-                    "CMUYautjaClanArmorSilver",
-                    "CMUYautjaClanArmorCrimson",
-                    "CMUYautjaClanArmorBone");
+                var armor = AssertEquipped(entMan, inventory, hunter, "outerClothing", "CMUYautjaClanArmor");
                 var mesh = AssertEquipped(entMan, inventory, hunter, "jumpsuit", "CMUYautjaBodyMesh");
                 var greaves = AssertEquipped(entMan, inventory, hunter, "shoes", "CMUYautjaClanGreaves");
                 var cloakPack = AssertEquipped(entMan, inventory, hunter, "back", "CMUYautjaCloakPack");
@@ -106,7 +97,7 @@ public sealed class YautjaSpeciesTest
                 AssertArmor(entMan.GetComponent<CMArmorComponent>(greaves), melee: 10, bullet: 10, bio: 10, explosion: 10);
 
                 var cloak = entMan.GetComponent<ThermalCloakComponent>(cloakPack);
-                Assert.That(cloak.Opacity, Is.EqualTo(0.02f).Within(0.001f));
+                Assert.That(cloak.Opacity, Is.EqualTo(0.01f).Within(0.001f));
                 Assert.That(cloak.CloakedHideLayers, Does.Contain(HumanoidVisualLayers.Hair));
                 Assert.That(cloak.CloakedHideLayers, Does.Contain(HumanoidVisualLayers.Eyes));
                 Assert.That(entMan.GetComponent<ClothingComponent>(cloakPack).RsiPath, Is.EqualTo("_CMU14/Yautja/cape_full.rsi"));
@@ -168,8 +159,7 @@ public sealed class YautjaSpeciesTest
                 var entMan = server.EntMan;
                 var identity = entMan.GetComponent<IdentityComponent>(hunter);
                 Assert.That(identity.IdentityEntitySlot.ContainedEntity, Is.Not.Null);
-                Assert.That(entMan.GetComponent<MetaDataComponent>(identity.IdentityEntitySlot.ContainedEntity!.Value).EntityName,
-                    Is.EqualTo(Loc.GetString("cmu-yautja-identity-unknown")));
+                Assert.That(entMan.GetComponent<MetaDataComponent>(identity.IdentityEntitySlot.ContainedEntity!.Value).EntityName, Is.EqualTo("unknown"));
             });
         }
         finally
@@ -261,16 +251,7 @@ public sealed class YautjaSpeciesTest
                 var mask = AssertEquipped(entMan, inventory, hunter, "mask", "CMUYautjaMask");
                 AssertEquipped(entMan, inventory, hunter, "gloves", "CMUYautjaBracer");
                 AssertEquipped(entMan, inventory, hunter, "back", "CMUYautjaCloakPack");
-                AssertEquippedAny(
-                    entMan,
-                    inventory,
-                    hunter,
-                    "outerClothing",
-                    "CMUYautjaClanArmor",
-                    "CMUYautjaClanArmorBronze",
-                    "CMUYautjaClanArmorSilver",
-                    "CMUYautjaClanArmorCrimson",
-                    "CMUYautjaClanArmorBone");
+                AssertEquipped(entMan, inventory, hunter, "outerClothing", "CMUYautjaClanArmor");
                 AssertEquipped(entMan, inventory, hunter, "jumpsuit", "CMUYautjaBodyMesh");
                 AssertEquipped(entMan, inventory, hunter, "shoes", "CMUYautjaClanGreaves");
                 AssertEquipped(entMan, inventory, hunter, "pocket1", "CMUYautjaSmartDisc");
@@ -288,8 +269,7 @@ public sealed class YautjaSpeciesTest
                 var entMan = server.EntMan;
                 var identity = entMan.GetComponent<IdentityComponent>(hunter);
                 Assert.That(identity.IdentityEntitySlot.ContainedEntity, Is.Not.Null);
-                Assert.That(entMan.GetComponent<MetaDataComponent>(identity.IdentityEntitySlot.ContainedEntity!.Value).EntityName,
-                    Is.EqualTo(Loc.GetString("cmu-yautja-identity-unknown")));
+                Assert.That(entMan.GetComponent<MetaDataComponent>(identity.IdentityEntitySlot.ContainedEntity!.Value).EntityName, Is.EqualTo("unknown"));
             });
         }
         finally
@@ -318,22 +298,6 @@ public sealed class YautjaSpeciesTest
 
         var meta = entMan.GetComponent<MetaDataComponent>(equipped.Value);
         Assert.That(meta.EntityPrototype?.ID, Is.EqualTo(prototype), slot);
-
-        return equipped.Value;
-    }
-
-    private static EntityUid AssertEquippedAny(
-        IEntityManager entMan,
-        InventorySystem inventory,
-        EntityUid wearer,
-        string slot,
-        params string[] prototypes)
-    {
-        Assert.That(inventory.TryGetSlotEntity(wearer, slot, out var equipped), Is.True, slot);
-        Assert.That(equipped, Is.Not.Null, slot);
-
-        var meta = entMan.GetComponent<MetaDataComponent>(equipped.Value);
-        Assert.That(prototypes, Does.Contain(meta.EntityPrototype?.ID), slot);
 
         return equipped.Value;
     }
@@ -424,7 +388,7 @@ public sealed class YautjaSpeciesTest
         var ev = new TransformSpeakerNameEvent(hunter, "Frank Morgan");
         entMan.EventBus.RaiseLocalEvent(hunter, ev);
 
-        Assert.That(ev.VoiceName, Is.EqualTo(Loc.GetString("cmu-yautja-identity-unknown")));
+        Assert.That(ev.VoiceName, Is.EqualTo("unknown"));
     }
 
     private static void AssertYautjaNightVision(IEntityManager entMan, EntityUid hunter)
