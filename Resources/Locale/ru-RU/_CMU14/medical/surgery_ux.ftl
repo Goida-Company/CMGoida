@@ -376,7 +376,7 @@ cmu-body-scanner-layer-empty = Никаких аномальных показа�
 
 cmu-body-scanner-signal-locked = Сигнал заблокирован
 
-cmu-body-scanner-signal-ready = { $detail } - блокировка на циане
+cmu-body-scanner-signal-ready = { $detail } - блокировка
 
 cmu-body-scanner-start-status = Запустите калибровку, чтобы начать сканирование срезов.
 
@@ -400,7 +400,7 @@ cmu-body-scanner-timer-active = АКТИВНЫЙ ТАЙМЕР НАРЕЗКИ
 
 cmu-body-scanner-timer-expired = ТАЙМЕР ИСТЕК
 
-cmu-body-scanner-timer-locked = СЛАЙС ЗАБЛОКИРОВАН
+cmu-body-scanner-timer-locked = НАРЕЗЧИК ЗАБЛОКИРОВАН
 
 cmu-body-scanner-timer-detail = Зафиксируйте показания до закрытия окна сканирования.
 
@@ -556,7 +556,7 @@ cmu-limb-printer-remove-syringe = Удалить шприц
 
 cmu-limb-printer-left-heading = Левый
 
-cmu-limb-printer-right-heading = Правильно
+cmu-limb-printer-right-heading = Правый
 
 cmu-limb-printer-print-ready = Готов к печати
 

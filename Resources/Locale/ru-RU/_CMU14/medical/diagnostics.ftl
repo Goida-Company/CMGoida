@@ -20,7 +20,7 @@ cmu-medical-scanner-part-line              = { $part }: { $current }/{ $max } HP
 
 cmu-medical-scanner-part-suffix-splinted   = (шинированный)
 
-cmu-medical-scanner-part-suffix-cast       = (в актерском составе)
+cmu-medical-scanner-part-suffix-cast       = (в гипсе)
 
 cmu-medical-scanner-part-suffix-wounds     = ({ $count } wound{ $count ->
     [one] {""}
@@ -99,7 +99,7 @@ cmu-medical-scanner-pain-risk-imminent     = Неизбежный
 
 cmu-medical-scanner-pain-risk-active       = Активный
 
-cmu-medical-scanner-pain-risk-suppressed-suffix =  (доп.)
+cmu-medical-scanner-pain-risk-suppressed-suffix =  (подав.)
 
 # V2-ε Stat-sheet redesign — dark cards + status banner + body chart
 
@@ -153,7 +153,7 @@ cmu-medical-scanner-severity-severed       = Отрезанный
 
 cmu-medical-scanner-chip-fracture-vague    = Перелом
 
-cmu-medical-scanner-chip-suppressed-suffix =  (доп.)
+cmu-medical-scanner-chip-suppressed-suffix =  (подав.)
 
 cmu-medical-scanner-chip-bleed             = IB
 
@@ -161,7 +161,7 @@ cmu-medical-scanner-chip-bleeding          = Кровотечение
 
 cmu-medical-scanner-chip-splint            = шина
 
-cmu-medical-scanner-chip-cast              = В ролях
+cmu-medical-scanner-chip-cast              = гипс
 
 cmu-medical-scanner-chip-tourniquet        = TQ
 

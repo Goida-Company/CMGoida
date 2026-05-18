@@ -1,14 +1,14 @@
 ent-RMCSecureCaseMini = маленький футляр
-  .desc = Небольшой твердый кейс. 
+  .desc = Небольшой твердый кейс.
 
 ent-RMCCrateMini = маленький ящик
   .desc = Двоюродный брат большого ящика с припасами, удален первым.
 
 ent-RMCSecureCaseAmmoMini = маленький аммокейс
-  .desc = Небольшой металлический ящик. 
+  .desc = Небольшой металлический ящик.
 
 ent-RMCSecureCaseMedicalSmall = маленькая медицинская коробка
-  .desc = Небольшой металлический ящик. 
+  .desc = Небольшой металлический ящик.
 
 ent-RMCSmallChestRed = маленький сундук
   .desc = Небольшой пластиковый ящик, обернутый эластичными ремнями.
@@ -25,13 +25,13 @@ ent-RMCSecureCaseMedicalBig = медицинский ящик
 ent-RMCSecureCaseStrapped = безопасный ящик с припасами
   .desc = Огромный деревянный ящик.
 
-ent-RMCSecureCaseChest = грудь
+ent-RMCSecureCaseChest = сундук
   .desc = здоровенный деревянный ящик.
 
-ent-RMCSecureCaseSmall = небольшие дела
+ent-RMCSecureCaseSmall = небольшие кейсы
   .desc = Два небольших черных ящика для хранения.
 
-ent-RMCSecureCaseDouble = случаи
+ent-RMCSecureCaseDouble = кейсы
   .desc = Стопка черных ящиков для хранения.
 
 ent-RMCSecureCase = футляр для хранения
@@ -94,11 +94,11 @@ ent-RMCCrateUNMCGunsSingle = Ящик для огнестрельного ору
 ent-RMCCrateMedicalVendor = Ящик Ве-Я-Мед Плюс
   .desc = Ящик с одним продавцом We-Ya-Med Plus.
 
-ent-RMCCrateGeneratorPACMAN = П.А.К.М.А.Н. 
-  .desc = Ящик с P.A.C.M.A.N. 
+ent-RMCCrateGeneratorPACMAN = П.А.К.М.А.Н.
+  .desc = Ящик с P.A.C.M.A.N.
 
 ent-RMCCrateFloodlightX4 = ящик для прожектора (x4)
-  .desc = Ящик с четырьмя прожекторами. 
+  .desc = Ящик с четырьмя прожекторами.
 
 ent-RMCCrateTablesAndRacks = ящик для хранения (x10, x10)
   .desc = Ящик, содержащий десять частей стола и десять частей стеллажа, для удобства хранения.

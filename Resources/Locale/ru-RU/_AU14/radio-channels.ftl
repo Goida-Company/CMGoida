@@ -1,26 +1,37 @@
 chat-radio-opfor = Сьерра
+
 chat-radio-opforcommand = Командование
+
 chat-radio-opforjtac = СКАТ
+
 chat-radio-opforintel = Разведка
+
 chat-radio-opforbravo = Танго
+
 chat-radio-opforcharlie = Юниформ
+
 chat-radio-govforintel = Разведка
+
 chat-radio-govforbravo = Браво
+
 chat-radio-govforcharlie = Чарли
+
 chat-radio-mob = Семья
+
 chat-radio-alert = Оповещение Колонии
+
 chat-radio-uppsof = ССО СПН
+
 chat-radio-uasof = ССО США
+
 chat-radio-ai = ИИ
 
-# Missing entries synced from en-US
-
-chat-radio-twe = ДВА МЯГКИХ
+chat-radio-twe = ИТМ
 
 chat-radio-icsc = КМГС ССО
 
 chat-radio-vai = ВАИ
 
-chat-radio-colony-softwave = Софтвейв
+chat-radio-colony-softwave = мягкая волна
 
-chat-radio-clf = КЛФ
+chat-radio-clf = КОФ
