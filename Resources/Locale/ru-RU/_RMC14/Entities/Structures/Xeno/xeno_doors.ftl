@@ -1,7 +1,7 @@
 ent-DoorXenoResinThick = толстая смоляная дверь
   .desc = Дверь из толстой смолы, более прочная.
 
-ent-DoorXenoResin = смоляная
+ent-DoorXenoResin = смоляная дверь
   .desc = Это смоляная дверь.
 
 ent-DoorXenoResinWeedbound = смоляная дверь с сорняками
