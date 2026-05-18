@@ -1,9 +1,7 @@
 chat-radio-opfor = Сьерра
 
 chat-radio-opforcommand = Командование
-
-chat-radio-opforjtac = СКАТ
-
+chat-radio-opforjtac = JTAC
 chat-radio-opforintel = Разведка
 
 chat-radio-opforbravo = Танго
@@ -17,9 +15,7 @@ chat-radio-govforbravo = Браво
 chat-radio-govforcharlie = Чарли
 
 chat-radio-mob = Семья
-
-chat-radio-alert = Оповещение Колонии
-
+chat-radio-alert = Оповещение колонии
 chat-radio-uppsof = ССО СПН
 
 chat-radio-uasof = ССО США
