@@ -32,6 +32,7 @@
       - PillPacket
       - Hypospray
       - CMUSplintItem
+      - HemostaticGauzePacket
 
 - type: entity
   parent: AU14PouchMedicalProdigy
@@ -134,6 +135,9 @@
       - CMSurgicalLine
       - CMSynthGraft
       - PillPacket
+      - Hypospray
+      - HemostaticGauzePacket
+      components:
       - Hypospray
       - CMUSplintItem
 

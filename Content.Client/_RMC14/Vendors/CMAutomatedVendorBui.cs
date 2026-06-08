@@ -9,7 +9,6 @@ using JetBrains.Annotations;
 using Robust.Client.GameObjects;
 using Robust.Client.Graphics;
 using Robust.Client.Player;
-using Robust.Client.ResourceManagement;
 using Robust.Client.UserInterface;
 using Robust.Client.UserInterface.CustomControls;
 using Robust.Shared.Prototypes;
@@ -24,7 +23,6 @@ public sealed partial class CMAutomatedVendorBui : BoundUserInterface
 {
     [Dependency] private IPlayerManager _player = default!;
     [Dependency] private IPrototypeManager _prototype = default!;
-    [Dependency] private IResourceCache _resource = default!;
 
     private readonly SharedJobSystem _job;
     private readonly SharedMindSystem _mind;
@@ -96,7 +94,7 @@ public sealed partial class CMAutomatedVendorBui : BoundUserInterface
 
                 if (_prototype.TryIndex(entry.Id, out var entity))
                 {
-                    uiEntry.Texture.Textures = SpriteComponent.GetPrototypeTextures(entity, _resource)
+                    uiEntry.Texture.Textures = EntMan.System<SpriteSystem>().GetPrototypeTextures(entity)
                         .Select(o => o.Default)
                         .ToList();
                     if (entity.TryGetComponent<SpriteComponent>("Sprite", out var entitySprites) &&
@@ -383,8 +381,11 @@ public sealed partial class CMAutomatedVendorBui : BoundUserInterface
     private FormattedMessage GetSectionName(CMVendorUserComponent? user, CMVendorSection section)
     {
         var name = new FormattedMessage();
-        name.PushTag(new MarkupNode("bold", new MarkupParameter(section.Name.ToUpperInvariant()), null));
-        name.AddText(section.Name.ToUpperInvariant());
+        // RuMC edit start
+        var localizedName = Loc.GetString(section.Name).ToUpperInvariant();
+        name.PushTag(new MarkupNode("bold", new MarkupParameter(localizedName), null));
+        name.AddText(localizedName);
+        // RuMC edit end
 
         if (section.TakeAll != null)
         {
@@ -393,7 +394,7 @@ public sealed partial class CMAutomatedVendorBui : BoundUserInterface
             {
                 if (takeAll == null || !takeAll.Contains((section.TakeAll, entry.Id)))
                 {
-                    name.AddText(" (TAKE ALL)");
+                    name.AddText(Loc.GetString("rmc-vendor-section-take-all"));
                     break;
                 }
             }
@@ -402,19 +403,19 @@ public sealed partial class CMAutomatedVendorBui : BoundUserInterface
         {
             var takeOne = user?.TakeOne;
             if (takeOne == null || !takeOne.Contains(section.TakeOne))
-                name.AddText(" (TAKE ONE)");
+                name.AddText(Loc.GetString("rmc-vendor-section-take-one"));
         }
         else if (section.Choices is { } choices)
         {
             if (user == null)
             {
-                name.AddText($" (CHOOSE {choices.Amount})");
+                name.AddText(Loc.GetString("rmc-vendor-section-choose", ("amount", choices.Amount)));
             }
             else
             {
                 var left = choices.Amount - user.Choices.GetValueOrDefault(choices.Id);
                 if (left > 0)
-                    name.AddText($" (CHOOSE {left})");
+                    name.AddText(Loc.GetString("rmc-vendor-section-choose", ("amount", left)));
             }
         }
 

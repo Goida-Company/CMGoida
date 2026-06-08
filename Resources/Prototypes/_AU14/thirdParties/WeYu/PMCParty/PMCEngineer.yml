@@ -18,6 +18,9 @@
   special:
   - !type:AddComponentSpecial
     components:
+    - type: NpcFactionMember
+      factions:
+      - AUWeYu
     - type: Skills
       preset: AU14SkillPresetPlatoonCombatTechnician
     - type: JobPrefix
@@ -60,9 +63,9 @@
     gloves: AU14PVEHandsInsulatedBlackMarine
     belt: AU14BeltUtilityFilled
     pocket1: RMCPouchMagazineLargePMC
-    pocket2: RMCPouchFirstAidPMCFill
+    pocket2: AU14PouchIFAKFill
     back: RMCSatchelLightpackWeYa
-    ears2: RMCHeadsetDistressWeYa
+    ears: RMCHeadsetDistressWeYa
     suitstorage: RMCWeaponRifleM54C2
   storage:
     belt:
@@ -72,8 +75,6 @@
     - CMMagazineRifleM54CAP
     - CMMagazineRifleM54CAP
     - CMMagazineRifleM54CAP
-    pocket2:
-    - AU14Tourniquet
     back:
     - RMCMREWeYa
     - CMCanteen

@@ -3,6 +3,7 @@ using System.Numerics;
 using Content.Client._CMU14.Medical.UI;
 using Content.Client._RMC14.Medical.HUD;
 using Content.Client.Message;
+using Content.Shared._CMU14.Medical.Stabilizers;
 using Content.Shared._CMU14.Medical.Wounds;
 using Content.Shared._RMC14.Chemistry.Reagent;
 using Content.Shared._RMC14.Marines.Skills;
@@ -31,7 +32,6 @@ public sealed partial class HealthScannerBui : BoundUserInterface
 {
     [Dependency] private IEntityManager _entities = default!;
     [Dependency] private IPlayerManager _player = default!;
-    [Dependency] private IPrototypeManager _prototype = default!;
 
     [ViewVariables]
     private HealthScannerWindow? _window;
@@ -39,6 +39,7 @@ public sealed partial class HealthScannerBui : BoundUserInterface
     private bool _hasLastTarget;
 
     private readonly ShowHolocardIconsSystem _holocardIcons;
+    private readonly RMCReagentSystem _reagent;
     private readonly SkillsSystem _skills;
 
     private Dictionary<EntProtoId<SkillDefinitionComponent>, int> BloodPackSkill = new() { ["RMCSkillSurgery"] = 1 };
@@ -50,6 +51,7 @@ public sealed partial class HealthScannerBui : BoundUserInterface
     public HealthScannerBui(EntityUid owner, Enum uiKey) : base(owner, uiKey)
     {
         _holocardIcons = _entities.System<ShowHolocardIconsSystem>();
+        _reagent = _entities.System<RMCReagentSystem>();
         _skills = _entities.System<SkillsSystem>();
     }
 
@@ -180,7 +182,7 @@ public sealed partial class HealthScannerBui : BoundUserInterface
         {
             foreach (var reagent in uiState.Chemicals.Contents)
             {
-                if (!_prototype.TryIndexReagent(reagent.Reagent.Prototype, out ReagentPrototype? prototype))
+                if (!_reagent.TryIndex(reagent.Reagent, out var prototype))
                     continue;
 
                 if (prototype.Unknown)
@@ -490,6 +492,7 @@ public sealed partial class HealthScannerBui : BoundUserInterface
         AppendFractureChip(chipStrip, uiState, part);
         AppendBleedChip(chipStrip, uiState, part);
         AppendWoundChip(chipStrip, part);
+        AppendShrapnelChip(chipStrip, part);
         if (part.Eschar)
             chipStrip.AddChild(BuildChip(Loc.GetString("cmu-medical-scanner-eschar"), Color.FromHex("#7A5540")));
         if (part.Splinted)
@@ -611,7 +614,8 @@ public sealed partial class HealthScannerBui : BoundUserInterface
         {
             if (frac.Part != part.Type || frac.Symmetry != part.Symmetry)
                 continue;
-            var label = frac.ExactSeverity ? frac.Severity.ToString()
+            var label = frac.ExactSeverity
+                ? Loc.GetString($"cmu-medical-scanner-fracture-severity-{frac.Severity.ToString().ToLower()}") // RuMC edit
                 : Loc.GetString("cmu-medical-scanner-chip-fracture-vague");
             if (frac.Suppressed)
                 label += Loc.GetString("cmu-medical-scanner-chip-suppressed-suffix");
@@ -647,8 +651,21 @@ public sealed partial class HealthScannerBui : BoundUserInterface
             return;
 
         strip.AddChild(BuildChip(
-            Loc.GetString(WoundDescriptorLocaleKey(descriptor)),
+            WoundChipText(descriptor, part.WoundMechanism),
             WoundDescriptorColor(descriptor)));
+    }
+
+    private static void AppendShrapnelChip(BoxContainer strip, CMUBodyPartReadout part)
+    {
+        if (part.ShrapnelFragments <= 0)
+            return;
+
+        var color = part.ShrapnelSeverity >= 30f
+            ? Color.FromHex("#9A6A22")
+            : Color.FromHex("#756C5A");
+        strip.AddChild(BuildChip(
+            Loc.GetString("cmu-medical-scanner-chip-shrapnel", ("count", part.ShrapnelFragments)),
+            color));
     }
 
     private static string WoundDescriptorLocaleKey(WoundSize descriptor) => descriptor switch
@@ -658,6 +675,38 @@ public sealed partial class HealthScannerBui : BoundUserInterface
         WoundSize.Gaping => "cmu-medical-scanner-wound-gaping",
         WoundSize.Massive => "cmu-medical-scanner-wound-massive",
         _ => "cmu-medical-scanner-wound-deep",
+    };
+
+    private static string WoundChipText(WoundSize size, WoundMechanism? mechanism)
+    {
+        if (mechanism is null or WoundMechanism.Generic)
+            return Loc.GetString(WoundDescriptorLocaleKey(size));
+
+        return Loc.GetString("cmu-medical-scanner-wound-typed",
+            ("size", Loc.GetString(WoundSizeAdjectiveLocaleKey(size))),
+            ("mechanism", Loc.GetString(WoundMechanismLocaleKey(mechanism.Value))));
+    }
+
+    private static string WoundSizeAdjectiveLocaleKey(WoundSize descriptor) => descriptor switch
+    {
+        WoundSize.Small => "cmu-medical-scanner-wound-size-small",
+        WoundSize.Deep => "cmu-medical-scanner-wound-size-deep",
+        WoundSize.Gaping => "cmu-medical-scanner-wound-size-gaping",
+        WoundSize.Massive => "cmu-medical-scanner-wound-size-massive",
+        _ => "cmu-medical-scanner-wound-size-deep",
+    };
+
+    private static string WoundMechanismLocaleKey(WoundMechanism mechanism) => mechanism switch
+    {
+        WoundMechanism.Bullet => "cmu-medical-scanner-wound-mechanism-bullet",
+        WoundMechanism.Stab => "cmu-medical-scanner-wound-mechanism-stab",
+        WoundMechanism.Slash => "cmu-medical-scanner-wound-mechanism-slash",
+        WoundMechanism.Crush => "cmu-medical-scanner-wound-mechanism-crush",
+        WoundMechanism.Burn => "cmu-medical-scanner-wound-mechanism-burn",
+        WoundMechanism.Blast => "cmu-medical-scanner-wound-mechanism-blast",
+        WoundMechanism.Fragment => "cmu-medical-scanner-wound-mechanism-fragment",
+        WoundMechanism.Surgical => "cmu-medical-scanner-wound-mechanism-surgical",
+        _ => "cmu-medical-scanner-wound-mechanism-generic",
     };
 
     private static Color WoundDescriptorColor(WoundSize descriptor) => descriptor switch
@@ -755,6 +804,8 @@ public sealed partial class HealthScannerBui : BoundUserInterface
 
     private void BuildOrgans(HealthScannerBuiState uiState)
     {
+        AppendTraumaGovernorReadout(uiState);
+
         // null = sub-Med-2 examiner (FillOrgans is gated at skill ≥ 2 in
         // the server-side populator). Empty list = Med-2+ examiner but
         // patient has no organs (corpse / synth). Distinguish the two
@@ -831,6 +882,64 @@ public sealed partial class HealthScannerBui : BoundUserInterface
             }
             _window!.CMUOrgansContainer.AddChild(card);
         }
+    }
+
+    private void AppendTraumaGovernorReadout(HealthScannerBuiState uiState)
+    {
+        if (uiState.CMUTraumaGovernor is not { } governor)
+            return;
+
+        _window!.CMUOrgansContainer.AddChild(BuildChip(
+            FormatTraumaGovernor(governor),
+            TraumaGovernorColor(governor)));
+    }
+
+    private static string FormatTraumaGovernor(CMUTraumaGovernorReadout governor)
+    {
+        if (!governor.Installed)
+            return Loc.GetString("cmu-medical-scanner-stabilizer-missing");
+
+        if (governor.ActiveTarget is { } active)
+        {
+            return Loc.GetString(
+                "cmu-medical-scanner-stabilizer-active",
+                ("organ", Loc.GetString(SharedCMUTraumaGovernorSystem.GetTargetLocaleKey(active))),
+                ("seconds", (int) MathF.Ceiling(governor.ActiveSecondsRemaining)));
+        }
+
+        var text = governor.State switch
+        {
+            CMUTraumaGovernorState.Ready => Loc.GetString("cmu-medical-scanner-stabilizer-ready"),
+            CMUTraumaGovernorState.CoolingDown => Loc.GetString(
+                "cmu-medical-scanner-stabilizer-cooling",
+                ("seconds", (int) MathF.Ceiling(governor.CooldownSecondsRemaining))),
+            CMUTraumaGovernorState.Empty => Loc.GetString("cmu-medical-scanner-stabilizer-empty"),
+            _ => Loc.GetString("cmu-medical-scanner-stabilizer-unavailable"),
+        };
+
+        if (governor.VialBypassAvailable)
+            text += Loc.GetString("cmu-medical-scanner-stabilizer-vial-bypass-suffix");
+        else if (governor.VialLoaded)
+            text += Loc.GetString("cmu-medical-scanner-stabilizer-vial-loaded-suffix");
+
+        return text;
+    }
+
+    private static Color TraumaGovernorColor(CMUTraumaGovernorReadout governor)
+    {
+        if (governor.ActiveTarget is not null)
+            return Color.FromHex("#3D6C84");
+
+        if (!governor.Installed)
+            return Color.FromHex("#6A3333");
+
+        return governor.State switch
+        {
+            CMUTraumaGovernorState.Ready => Color.FromHex("#2C6E55"),
+            CMUTraumaGovernorState.CoolingDown => Color.FromHex("#8B6334"),
+            CMUTraumaGovernorState.Empty => Color.FromHex("#55595F"),
+            _ => Color.FromHex("#55595F"),
+        };
     }
 
     private static readonly (BodyPartType Type, BodyPartSymmetry Sym)[] CmuPartLayout =

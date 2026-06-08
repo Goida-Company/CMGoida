@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using Content.Shared.Preferences;
 using Content.Shared.Roles;
+using Robust.Shared.IoC;
 using Robust.Shared.Prototypes;
+using Robust.Shared.Localization; // RuMC edit
 
 namespace Content.Client.Lobby.UI;
 
@@ -44,18 +46,22 @@ internal static class LobbyHighJobPreview
 
     private static readonly (string Key, string Label)[] Gamemodes =
     {
-        ("Insurgency", "INS"),
-        ("ColonyFall", "CF"),
-        ("DistressSignal", "DS")
+        ("Insurgency", "rmc-lobby-gamemode-label-insurgency"), // RuMC edit
+        ("ColonyFall", "rmc-lobby-gamemode-label-colony-fall"),
+        ("DistressSignal", "rmc-lobby-gamemode-label-distress-signal")
     };
 
     public static string GetDisplayJobName(JobPrototype job)
     {
-        var name = string.IsNullOrWhiteSpace(job.SpawnMenuRoleName)
-            ? job.LocalizedName
-            : job.SpawnMenuRoleName;
-
+        var name = !string.IsNullOrWhiteSpace(job.SpawnMenuRoleName)
+            ? (IoCManager.Resolve<ILocalizationManager>().TryGetString(job.SpawnMenuRoleName, out var loc) ? loc : job.SpawnMenuRoleName)
+            : job.LocalizedName;
         return TrimHiddenFactionSuffix(name);
+    }
+
+    public static string GetLocalizedJobName(JobPrototype job) // RuMC edit
+    {
+        return TrimHiddenFactionSuffix(job.LocalizedName);
     }
 
     public static List<LobbyHighJobPreviewEntry> GetHighPriorityJobs(
@@ -84,8 +90,9 @@ internal static class LobbyHighJobPreview
                 }
 
                 var labels = gamemodeLabels[job.ID];
-                if (!labels.Contains(label))
-                    labels.Add(label);
+                var localizedLabel = Loc.GetString(label); // RuMC edit
+                if (!labels.Contains(localizedLabel))
+                    labels.Add(localizedLabel);
             }
         }
 

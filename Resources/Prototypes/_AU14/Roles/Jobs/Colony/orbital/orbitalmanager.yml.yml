@@ -1,6 +1,8 @@
 - type: job
   parent: CMJobBase
   id: AU14JobCivilianOrbitalManager
+  whitelisted: true
+  whitelistParent: RMCWhitelistHard
   name: au14-job-name-civilianorbitalmanager
   description: au14-job-description-civilianorbitalmanager
   setPreference: true
@@ -31,6 +33,7 @@
   - auwy
   - Colonist
   - CMCargoTech
+  - auorbitalmanagement
   roleWeight: 0.25
   special:
   - !type:AddComponentSpecial
@@ -63,8 +66,11 @@
     jumpsuit: CMJumpsuitLiaisonBlack
     shoes: RMCShoesLaceupBrown
     id: AU14IDCardCivilianOrbitalManager
-    ears: AU14ColonyAdminHeadset
+    ears: AU14OrbitalHeadsetManagement
     outerClothing: RMCJacketCorporateBlue
+    pocket1: AU14StampOrbitalMan
+  inhand:
+    - AU14BriefcaseLawBundle
 
 - type: entity
   parent: CMSpawnPointJobBase

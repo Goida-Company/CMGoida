@@ -1,11 +1,11 @@
 - type: job
-  parent: CMJobBase
-  id: AU14JobProdigyPARTYPartyMedic #m41a/2
+  parent: AU14JobPARTYPartyContractorBase
+  id: AU14JobWYProdigyPartyMedic #m41a/2
   name: Prodigy Yankee Combat Lifesaver
   description: au14-prodigyparty-description
-  playTimeTracker: AU14JobWYProdigyPartyMedic
+  playTimeTracker: AU14JobProdigyPartyMedicTracker
   ranks:
-    AU14RankWeYuOperator: []
+    AU14RankPrDOperator: []
   spawnMenuRoleName: Prodigy Yankee Combat Lifesaver (3rd party, M37-17)
   startingGear: AU14GearPARTYPartyMedic
   greeting: au14-prodigyparty-greeting
@@ -25,7 +25,7 @@
         RMCSkillFireman: 1
         RMCSkillJtac: 1
         RMCSkillMedical: 2
-        RMCSkillSurgery: 1
+        RMCSkillSurgery: 3
         RMCSkillConstruction: 2
         RMCSkillEngineer: 3
         RMCSkillPolice: 1
@@ -35,25 +35,23 @@
       icon:
         sprite: /Textures/_RMC14/Interface/map_blips.rsi
         state: synth
-  hidden: false
-
 
 - type: entity
   parent: AU14BaseMobSpeciesOrganicWeYu
-  id: AU14ProdigyPARTYPartyMedic
-  name: Prodigy Yankee Combat Lifesaver (3rd party, M37-17)
+  id: AU14JobWYProdigyPartyMedic
+  name: Prodigy Yankee Combat Lifesaver (3rd party, M41A/2)
   components:
   - type: GhostTakeoverAvailable
   - type: GhostRoleApplySpecial
-    squad: SquadPMC
+    squad: SquadPARTY
   - type: GhostRole
     makeSentient: true
     allowSpeech: true
     allowMovement: true
-    name: PMC Combat Lifesaver
+    name: Prodigy Yankee Combat Lifesaver
     description: au14-prodigyparty-description
     reregister: false
-    job: AU14JobProdigyPARTYPartyMedic
+    job: AU14JobWYProdigyPartyMedic
     raffle:
       settings: short
     rules: au14-prodigyparty-description
@@ -67,14 +65,14 @@
     shoes: RMCBootsSPPBlackFilled
     mask: RMCMaskCoifPMC
     eyes: RMCGlassesMedicalHUDGlasses
-    head: AU14PARTOperatorHelmetHeavy
+    head: AU14ProdigyBallisticHelmetPART
     gloves: AU14HandsProdigyRU
     belt: AU14BeltMedicBagProdigyFilled
     pocket1: RMCPouchShotgunLargeBuckshot
     pocket2: AU14PouchMedicalProdigyFilled
     back: RMCSatchelWelderRU #21 slots
-    ears: RMCM5CameraGear
-    ears2: AU14HeadsetPART
+    ears: AU14HeadsetPART
+    ears2: RMCM5CameraGear
     suitstorage: RMCWeaponShotgunM3717
   storage:
     #pocket1:
@@ -83,29 +81,29 @@
     #- AU14Tourniquet
     # no need, pouch already has 13 slots and is filled with med supplies
     back:
-    - RMCGrenadeBlastM12
-    - CMMRE
-    - RMCBinocularsPVE
+    - CMPortableSurgicalBedSpawnFolded
+    - CMSurgicalCaseFilled
     - AU14CMDefibrillator
     - CMShellShotgunBuckshot
     - CMShellShotgunBuckshot
     - CMShellShotgunBuckshot
     - CMShellShotgunBuckshot
-    - CMShellShotgunIncendiary
+    - CMShellShotgunBuckshot
+    - CMShellShotgunBuckshot
     jumpsuit:
     - AU14SynthResetKeyProdigy
-    - AU14SynthResetKeyProdigy
+    - RMCVisorMedical
     - AU14ProdigyLaptop
-    - RMCHandcuffs
+    - AU14ProdigyWeldingGoggles
     - RMCHandsLatexMarine
     # 0 empty slots
     outerClothing:
     - CMOintment10
     - CMOintment10
     - CMSyringe
-    - AU14Tourniquet
-    - AU14Tourniquet
+    - CMPortableSurgicalBedSpawnFolded
+    - CMSurgicalCaseFilled
     # 0 empty slots
 
 - type: playTimeTracker
-  id: AU14JobWYProdigyPartyMedic
+  id: AU14JobProdigyPartyMedicTracker

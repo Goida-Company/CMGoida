@@ -44,7 +44,7 @@ public sealed partial class RMCPullingSystem : EntitySystem
     [Dependency] private SharedPopupSystem _popup = default!;
     [Dependency] private PullingSystem _pulling = default!;
     [Dependency] private IRobustRandom _random = default!;
-    [Dependency] private StatusEffectsSystem _statusEffects = default!;
+    [Dependency] private StatusEffectQuerySystem _statusEffects = default!;
     [Dependency] private SharedStunSystem _stun = default!;
     [Dependency] private IGameTiming _timing = default!;
     [Dependency] private SharedTransformSystem _transform = default!;
@@ -63,6 +63,7 @@ public sealed partial class RMCPullingSystem : EntitySystem
     private const string PullEffect = "CMEffectGrab";
 
     private EntityQuery<FiremanCarriableComponent> _firemanQuery;
+    private readonly List<(EntityUid Pulled, EntityUid Puller)> _facePullerBuffer = new();
 
     public override void Initialize()
     {
@@ -345,9 +346,6 @@ public sealed partial class RMCPullingSystem : EntitySystem
         if (args.PullerUid != ent.Owner)
             return;
 
-        if (ent.Comp.NextAttack > _timing.CurTime)
-            args.Cancelled = true;
-
         var pulledUid = args.PulledUid;
         var attackEvent = new LightAttackEvent(GetNetEntity(pulledUid), GetNetEntity(ent), GetNetCoordinates(pulledUid.ToCoordinates()));
         if (_rmcMelee.AttemptOverrideAttack(pulledUid, ent, ent, attackEvent, out var attack, out var cancelled, BarricadeCheckRange))
@@ -594,6 +592,7 @@ public sealed partial class RMCPullingSystem : EntitySystem
             RemCompDeferred<SynthStunCancelOnMoveComponent>(uid);
         }
 
+        _facePullerBuffer.Clear();
         var pullableQuery = EntityQueryEnumerator<BeingPulledComponent, PullableComponent>();
         while (pullableQuery.MoveNext(out var uid, out _, out var pullable))
         {
@@ -603,6 +602,19 @@ public sealed partial class RMCPullingSystem : EntitySystem
             var puller = pullable.Puller.Value;
             if (!Exists(puller))
                 continue;
+
+            _facePullerBuffer.Add((uid, puller));
+        }
+
+        foreach (var (uid, puller) in _facePullerBuffer)
+        {
+            if (!HasComp<BeingPulledComponent>(uid) ||
+                !TryComp<PullableComponent>(uid, out var pullable) ||
+                pullable.Puller != puller ||
+                !Exists(puller))
+            {
+                continue;
+            }
 
             if (_firemanQuery.TryComp(uid, out var fireman) && fireman.BeingCarried)
                 continue;
@@ -619,5 +631,7 @@ public sealed partial class RMCPullingSystem : EntitySystem
             var angle = (pulledCoords - pullerCoords).ToWorldAngle().GetCardinalDir().ToAngle();
             _rotateTo.TryFaceAngle(puller, angle);
         }
+
+        _facePullerBuffer.Clear();
     }
 }

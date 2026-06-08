@@ -65,6 +65,9 @@ public sealed partial class XenoHiveSystem : SharedXenoHiveSystem
 
     private void OnRadioReceiveAttempt(ref RadioReceiveAttemptEvent args)
     {
+        if (args.Channel.ID != SharedChatSystem.HivemindChannel.Id)
+            return;
+
         //since hivemind is an intrinsic channel, we can probably just access it directly
         if (TryComp<HiveMemberComponent>(args.RadioSource, out var hivea) && IsMember(args.RadioReceiver, hivea.Hive))
             return;
@@ -102,7 +105,7 @@ public sealed partial class XenoHiveSystem : SharedXenoHiveSystem
                 continue;
 
             hive.LateJoinMarines -= lateJoinsPer;
-            IncreaseBurrowedLarva((uid, hive), 1);
+            ChangeBurrowedLarva((uid, hive), 1);
         }
     }
 
@@ -191,7 +194,7 @@ public sealed partial class XenoHiveSystem : SharedXenoHiveSystem
                 continue;
             }
 
-            IncreaseBurrowedLarva(1);
+            ChangeBurrowedLarva(1);
             burrowed.PooledLarva--;
             if (burrowed.PooledLarva < 1)
                 RemCompDeferred<HijackBurrowedSurgeComponent>(id);

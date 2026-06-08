@@ -81,7 +81,7 @@ public abstract partial class SharedXenoParasiteSystem : EntitySystem
     [Dependency] private IRobustRandom _random = default!;
     [Dependency] private SharedJitteringSystem _jitter = default!;
     [Dependency] private DamageableSystem _damage = default!;
-    [Dependency] private StatusEffectsSystem _status = default!;
+    [Dependency] private StatusEffectQuerySystem _status = default!;
     [Dependency] private SharedRottingSystem _rotting = default!;
     [Dependency] private TagSystem _tagSystem = default!;
     [Dependency] private RMCMapSystem _rmcMap = default!;
@@ -91,6 +91,7 @@ public abstract partial class SharedXenoParasiteSystem : EntitySystem
 
     private const CollisionGroup LeapCollisionGroup = CollisionGroup.InteractImpassable;
     private const CollisionGroup ThrownCollisionGroup = CollisionGroup.InteractImpassable | CollisionGroup.BarricadeImpassable;
+    private static readonly ProtoId<TagPrototype> RipOffOnInfectionTag = "RipOffOnInfection";
 
     protected readonly ProtoId<TagPrototype> ParasiteIsPreparingLeapProtoID = new ProtoId<TagPrototype>("RMCXenoParasitePreparingLeap");
 
@@ -488,6 +489,7 @@ public abstract partial class SharedXenoParasiteSystem : EntitySystem
         {
             BreakOnMove = true,
             BlockDuplicate = true,
+            CancelDuplicate = false,
             DuplicateCondition = DuplicateConditions.SameEvent,
             AttemptFrequency = AttemptFrequency.EveryTick
         };
@@ -593,6 +595,14 @@ public abstract partial class SharedXenoParasiteSystem : EntitySystem
         var unremovable = EnsureComp<UnremoveableComponent>(parasite);
         unremovable.DeleteOnDrop = false;
 
+        if (_net.IsServer)
+        {
+            parasite.Comp.InfectorUser = TryComp(parasite, out ActorComponent? actor)
+                ? actor.PlayerSession.UserId
+                : null;
+            parasite.Comp.InfectorWantsLarva = false;
+        }
+
         parasite.Comp.InfectedVictim = victim;
         parasite.Comp.FallOffAt = _timing.CurTime + parasite.Comp.FallOffDelay;
         Dirty(parasite);
@@ -686,6 +696,8 @@ public abstract partial class SharedXenoParasiteSystem : EntitySystem
                 _inventory.TryUnequip(infectedVictim, "mask", true, true, true);
 
                 var victimComp = EnsureComp<VictimInfectedComponent>(infectedVictim);
+                victimComp.InfectorUser = para.InfectorUser;
+                victimComp.InfectorWantsLarva = para.InfectorWantsLarva;
                 SetHive((infectedVictim, victimComp), _hive.GetHive(uid)?.Owner);
 
                 // TODO RMC14 also do damage to the parasite
@@ -1036,7 +1048,7 @@ public abstract partial class SharedXenoParasiteSystem : EntitySystem
         EntityUid? rippedOffItem = null;
         while (slots.NextItem(out var containedEntity, out var inventorySlot))
         {
-            if ((inventorySlot.SlotFlags & slotFlags) != 0 || _tagSystem.HasTag(containedEntity, "RipOffOnInfection"))
+            if ((inventorySlot.SlotFlags & slotFlags) != 0 || _tagSystem.HasTag(containedEntity, RipOffOnInfectionTag))
             {
                 TryComp(containedEntity, out ParasiteResistanceComponent? resistance);
 
@@ -1100,6 +1112,51 @@ public abstract partial class SharedXenoParasiteSystem : EntitySystem
         Dirty(burst);
     }
 
+    protected bool TrySetLarvaClaimChoice(Entity<XenoParasiteComponent> parasite, EntityUid victim, NetUserId userId, bool wantsLarva)
+    {
+        if (parasite.Comp.InfectedVictim != victim ||
+            parasite.Comp.InfectorUser != userId)
+        {
+            return false;
+        }
+
+        parasite.Comp.InfectorWantsLarva = wantsLarva;
+        Dirty(parasite);
+
+        if (TryComp(victim, out VictimInfectedComponent? infected) &&
+            infected.InfectorUser == userId)
+        {
+            infected.InfectorWantsLarva = wantsLarva;
+            Dirty(victim, infected);
+        }
+
+        return true;
+    }
+
+    protected bool TryGetLarvaClaimUser(Entity<VictimInfectedComponent> victim, out NetUserId userId)
+    {
+        if (victim.Comp.InfectorWantsLarva &&
+            victim.Comp.InfectorUser is { } infector)
+        {
+            userId = infector;
+            return true;
+        }
+
+        userId = default;
+        return false;
+    }
+
+    protected void ClearInfectorUser(Entity<VictimInfectedComponent> victim)
+    {
+        victim.Comp.InfectorUser = null;
+        victim.Comp.InfectorWantsLarva = false;
+        Dirty(victim);
+    }
+
+    protected virtual void LarvaLinked(Entity<VictimInfectedComponent> victim, EntityUid spawned)
+    {
+    }
+
     public void SpawnLarva(Entity<VictimInfectedComponent> victim, out EntityUid spawned)
     {
         var larvaContainer = _container.EnsureContainer<ContainerSlot>(victim.Owner, victim.Comp.LarvaContainerId);
@@ -1116,9 +1173,6 @@ public abstract partial class SharedXenoParasiteSystem : EntitySystem
 
     private void LinkLarvaToVictim(Entity<VictimInfectedComponent> victim, EntityUid spawned)
     {
-        if (HasComp<XenoComponent>(spawned))
-            _hive.SetHive(spawned, victim.Comp.Hive);
-
         victim.Comp.CurrentStage = 6;
         victim.Comp.SpawnedLarva = spawned;
         Dirty(victim);
@@ -1126,6 +1180,12 @@ public abstract partial class SharedXenoParasiteSystem : EntitySystem
         EnsureComp<BursterComponent>(spawned, out var burster);
         burster.BurstFrom = victim.Owner;
         Dirty(spawned, burster);
+
+        // Let the accepted infector claim this specific larva before hive assignment wakes the general larva queue.
+        LarvaLinked(victim, spawned);
+
+        if (HasComp<XenoComponent>(spawned))
+            _hive.SetHive(spawned, victim.Comp.Hive);
     }
 }
 

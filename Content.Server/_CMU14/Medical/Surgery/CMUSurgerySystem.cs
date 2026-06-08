@@ -4,12 +4,14 @@ using Content.Shared._CMU14.Medical.Bones;
 using Content.Shared._CMU14.Medical.BodyPart;
 using Content.Shared._CMU14.Medical.Organs;
 using Content.Shared._CMU14.Medical.Surgery;
+using Content.Shared._CMU14.Medical.Wounds;
 using Content.Shared._RMC14.Synth;
 using Content.Shared.Body.Components;
 using Content.Shared.Body.Organ;
 using Content.Shared.Body.Part;
 using Content.Shared.Body.Systems;
 using Content.Shared.FixedPoint;
+using Content.Shared.Hands.Components;
 using Content.Shared.Hands.EntitySystems;
 using Content.Shared.Popups;
 using Content.Shared.StatusEffectNew;
@@ -96,6 +98,8 @@ public sealed partial class CMUSurgerySystem : SharedCMUSurgerySystem
             return;
         }
 
+        RestoreUsableHands(body);
+
         var hpFraction = (float)_cfg.GetCVar(CMUMedicalCCVars.SurgeryLimbReattachStartingHpFraction);
         if (TryComp<BodyPartHealthComponent>(limb, out var bph))
             _partHealth.SetCurrent((limb, bph), bph.Max * (FixedPoint2)hpFraction);
@@ -104,6 +108,8 @@ public sealed partial class CMUSurgerySystem : SharedCMUSurgerySystem
         // (Comminuted) from prior trauma, leave it.
         if (HasComp<SynthComponent>(body))
         {
+            ClearSynthLimbOrganicMedicalState(limb);
+
             if (TryComp<FractureComponent>(limb, out var existingFracture))
                 Fracture.SetSeverity((limb, existingFracture), FractureSeverity.None, forceUpgrade: false);
         }
@@ -116,6 +122,121 @@ public sealed partial class CMUSurgerySystem : SharedCMUSurgerySystem
         TryClearMissingLimbStatus(body, limbPart.PartType, limbPart.Symmetry);
 
         _popup.PopupEntity(Loc.GetString("cmu-medical-reattach-success"), body, user, PopupType.Medium);
+    }
+
+    private void ClearSynthLimbOrganicMedicalState(EntityUid limb)
+    {
+        if (TryComp<BodyPartWoundComponent>(limb, out var wounds))
+        {
+            Wounds.ClearAllWounds((limb, wounds));
+
+            if (HasComp<BodyPartWoundComponent>(limb))
+                RemComp<BodyPartWoundComponent>(limb);
+        }
+
+        if (HasComp<InternalBleedingComponent>(limb))
+            RemComp<InternalBleedingComponent>(limb);
+        if (HasComp<CMUInternalBleedingSuppressedComponent>(limb))
+            RemComp<CMUInternalBleedingSuppressedComponent>(limb);
+        if (HasComp<CMUTourniquetComponent>(limb))
+            RemComp<CMUTourniquetComponent>(limb);
+        if (HasComp<CMUEscharComponent>(limb))
+            RemComp<CMUEscharComponent>(limb);
+        if (HasComp<CMUNecroticComponent>(limb))
+            RemComp<CMUNecroticComponent>(limb);
+    }
+
+    private void RestoreUsableHands(EntityUid body)
+    {
+        if (!TryComp<HandsComponent>(body, out var hands))
+            return;
+
+        foreach (var (partId, part) in Body.GetBodyChildren(body))
+        {
+            if (part.PartType != BodyPartType.Hand)
+                continue;
+
+            var location = part.Symmetry switch
+            {
+                BodyPartSymmetry.Left => HandLocation.Left,
+                BodyPartSymmetry.Right => HandLocation.Right,
+                _ => HandLocation.Middle,
+            };
+
+            string? handId = null;
+            if (Body.GetParentPartAndSlotOrNull(partId) is { } parentSlot)
+                handId = SharedBodySystem.GetPartSlotContainerId(parentSlot.Slot);
+            else if (part.Symmetry is BodyPartSymmetry.Left or BodyPartSymmetry.Right)
+                handId = SharedBodySystem.GetPartSlotContainerId(part.Symmetry == BodyPartSymmetry.Left
+                    ? "left_hand"
+                    : "right_hand");
+
+            if (handId == null)
+                continue;
+
+            if (!_hands.TrySetHandLocation((body, hands), handId, location))
+                _hands.AddHand((body, hands), handId, location);
+        }
+
+        if (NormalizeBodyHandOrder(hands))
+            Dirty(body, hands);
+
+        if (hands.ActiveHandId == null && hands.SortedHands.Count > 0)
+            _hands.SetActiveHand((body, hands), hands.SortedHands[0]);
+    }
+
+    private static bool NormalizeBodyHandOrder(HandsComponent hands)
+    {
+        var sortedHands = hands.SortedHands;
+        if (sortedHands.Count < 2)
+            return false;
+
+        var ordered = new List<string>(sortedHands.Count);
+        AddCanonicalHand(sortedHands, ordered, "right_hand");
+        AddCanonicalHand(sortedHands, ordered, "left_hand");
+
+        foreach (var hand in sortedHands)
+        {
+            if (!ordered.Contains(hand))
+                ordered.Add(hand);
+        }
+
+        var changed = false;
+        for (var i = 0; i < sortedHands.Count; i++)
+        {
+            if (sortedHands[i] == ordered[i])
+                continue;
+
+            changed = true;
+            break;
+        }
+
+        if (!changed)
+            return false;
+
+        sortedHands.Clear();
+        sortedHands.AddRange(ordered);
+        return true;
+    }
+
+    private static void AddCanonicalHand(IReadOnlyList<string> sortedHands, List<string> ordered, string canonicalSlot)
+    {
+        foreach (var hand in sortedHands)
+        {
+            if (BarePartSlot(hand) != canonicalSlot || ordered.Contains(hand))
+                continue;
+
+            ordered.Add(hand);
+            return;
+        }
+    }
+
+    private static string BarePartSlot(string slot)
+    {
+        const string prefix = SharedBodySystem.PartSlotContainerIdPrefix;
+        return slot.StartsWith(prefix, StringComparison.Ordinal)
+            ? slot.Substring(prefix.Length)
+            : slot;
     }
 
     protected override void ApplyLimbRemoval(EntityUid user, EntityUid body, EntityUid part)

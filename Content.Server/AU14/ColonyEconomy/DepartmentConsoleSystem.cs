@@ -1,3 +1,4 @@
+using System.Linq;
 using Content.Server.Chat.Systems;
 using Content.Server.Stack;
 using Content.Shared.Access.Components;
@@ -24,6 +25,28 @@ namespace Content.Server.AU14.ColonyEconomy;
 
 public sealed partial class DepartmentConsoleSystem : EntitySystem
 {
+    private const int MaxRegistrationAttempts = 300;
+
+    private static readonly Dictionary<string, string[]> DepartmentFallbacks = new()
+    {
+        ["AU14DepartmentCivilian"] = new[] { "AU14DepartmentServices" },
+        ["AU14DepartmentLabor"] = new[] { "AU14DepartmentLumbermill" },
+        ["AU14DepartmentServices"] = new[] { "AU14DepartmentHydroponics" },
+    };
+
+    private readonly Dictionary<EntityUid, PendingDepartmentRegistration> _pendingRegistrations = new();
+
+    private sealed class PendingDepartmentRegistration
+    {
+        public readonly string JobId;
+        public int Attempts;
+
+        public PendingDepartmentRegistration(string jobId)
+        {
+            JobId = jobId;
+        }
+    }
+
     [Dependency] private UserInterfaceSystem _ui = default!;
     [Dependency] private SharedIdCardSystem _idCard = default!;
     [Dependency] private ChatSystem _chatSystem = default!;
@@ -52,6 +75,27 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
         SubscribeLocalEvent<DepartmentConsoleComponent, DepartmentConsoleOrderBuiMsg>(OnOrder);
         SubscribeLocalEvent<DepartmentConsoleComponent, EntInsertedIntoContainerMessage>(OnCashInserted);
         SubscribeLocalEvent<PlayerSpawnCompleteEvent>(OnPlayerSpawnComplete);
+    }
+
+    public override void Update(float frameTime)
+    {
+        base.Update(frameTime);
+
+        if (_pendingRegistrations.Count == 0)
+            return;
+
+        foreach (var (mob, pending) in _pendingRegistrations.ToArray())
+        {
+            if (!Exists(mob) || TryRegisterMobDepartments(mob, pending.JobId))
+            {
+                _pendingRegistrations.Remove(mob);
+                continue;
+            }
+
+            pending.Attempts++;
+            if (pending.Attempts >= MaxRegistrationAttempts)
+                _pendingRegistrations.Remove(mob);
+        }
     }
 
     /// <summary>
@@ -92,43 +136,87 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
         if (ev.JobId == null)
             return;
 
-        if (!_idCard.TryFindIdCard(ev.Mob, out var idCard))
-            return;
+        if (!TryRegisterMobDepartments(ev.Mob, ev.JobId))
+            _pendingRegistrations[ev.Mob] = new PendingDepartmentRegistration(ev.JobId);
+    }
+
+    private bool TryRegisterMobDepartments(EntityUid mob, string jobId)
+    {
+        if (!_idCard.TryFindIdCard(mob, out var idCard))
+            return false;
 
         var idCardUid = idCard.Owner;
 
         // Determine which department prototype IDs this job belongs to.
-        var jobDepartments = new HashSet<string>();
+        var jobDepartments = new Dictionary<string, bool>();
         foreach (var dept in _prototypeManager.EnumeratePrototypes<DepartmentPrototype>())
         {
-            if (dept.Roles.Contains(ev.JobId))
-                jobDepartments.Add(dept.ID);
+            if (dept.Roles.Contains(jobId))
+                jobDepartments[dept.ID] = dept.HeadOfDepartment == jobId;
         }
 
         // Special case: CLF guerillas get added to the Labor department console
         // without being in the department prototype itself.
-        if (ev.JobId == "AU14JobCLFGuerilla")
-            jobDepartments.Add("AU14DepartmentLabor");
+        if (jobId == "AU14JobCLFGuerilla")
+            jobDepartments["AU14DepartmentLabor"] = false;
 
         if (jobDepartments.Count == 0)
-            return;
+            return true;
 
         // Add the ID card to every matching department console.
+        var registeredDepartments = new HashSet<string>();
         var query = EntityQueryEnumerator<DepartmentConsoleComponent>();
         while (query.MoveNext(out var consoleUid, out var console))
         {
             if (console.DepartmentId == null)
                 continue;
 
-            if (!jobDepartments.Contains(console.DepartmentId))
+            var departmentId = console.DepartmentId.Value.Id;
+            if (!jobDepartments.TryGetValue(departmentId, out var isDepartmentHead))
                 continue;
 
-            if (console.Members.Add(idCardUid))
+            RegisterWithConsole(consoleUid, console, idCardUid, isDepartmentHead);
+            registeredDepartments.Add(departmentId);
+        }
+
+        foreach (var (departmentId, isDepartmentHead) in jobDepartments)
+        {
+            if (registeredDepartments.Contains(departmentId) ||
+                !DepartmentFallbacks.TryGetValue(departmentId, out var fallbackDepartments))
+                continue;
+
+            var fallbackQuery = EntityQueryEnumerator<DepartmentConsoleComponent>();
+            while (fallbackQuery.MoveNext(out var consoleUid, out var console))
             {
-                GrantDepartmentAccess(idCardUid, console);
-                UpdateUiState(consoleUid, console);
+                if (console.DepartmentId == null)
+                    continue;
+
+                var consoleDepartmentId = console.DepartmentId.Value.Id;
+                if (!fallbackDepartments.Contains(consoleDepartmentId))
+                    continue;
+
+                RegisterWithConsole(consoleUid, console, idCardUid, isDepartmentHead);
+                registeredDepartments.Add(departmentId);
             }
         }
+
+        return registeredDepartments.Count > 0;
+    }
+
+    private void RegisterWithConsole(
+        EntityUid consoleUid,
+        DepartmentConsoleComponent console,
+        EntityUid idCardUid,
+        bool isDepartmentHead)
+    {
+        var added = console.Members.Add(idCardUid);
+        GrantDepartmentAccess(idCardUid, console);
+
+        if (isDepartmentHead)
+            GrantConsoleAccess(idCardUid, consoleUid);
+
+        if (added)
+            UpdateUiState(consoleUid, console);
     }
 
     /// <summary>
@@ -139,16 +227,37 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
         if (dept.DepartmentAccessLevel == null)
             return;
 
+        GrantAccessTags(idCardUid, new[] { dept.DepartmentAccessLevel.Value });
+    }
+
+    private void GrantConsoleAccess(EntityUid idCardUid, EntityUid consoleUid)
+    {
+        if (!TryComp<AccessReaderComponent>(consoleUid, out var accessReader))
+            return;
+
+        var tags = new HashSet<ProtoId<AccessLevelPrototype>>();
+        foreach (var accessList in accessReader.AccessLists)
+        {
+            foreach (var tag in accessList)
+                tags.Add(tag);
+        }
+
+        GrantAccessTags(idCardUid, tags);
+    }
+
+    private void GrantAccessTags(EntityUid idCardUid, IEnumerable<ProtoId<AccessLevelPrototype>> tags)
+    {
         if (!TryComp<AccessComponent>(idCardUid, out var access))
             return;
 
-        if (access.Tags.Contains(dept.DepartmentAccessLevel.Value))
+        var newTags = new HashSet<ProtoId<AccessLevelPrototype>>(access.Tags);
+        var changed = false;
+        foreach (var tag in tags)
+            changed |= newTags.Add(tag);
+
+        if (!changed)
             return;
 
-        var newTags = new HashSet<ProtoId<AccessLevelPrototype>>(access.Tags)
-        {
-            dept.DepartmentAccessLevel.Value
-        };
         _accessSystem.TrySetTags(idCardUid, newTags, access);
     }
 
@@ -248,8 +357,8 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
                 continue;
             }
 
-            var name = idCard.FullName ?? "Unknown";
-            var jobTitle = idCard.LocalizedJobTitle ?? "Unknown";
+            var name = idCard.FullName ?? Loc.GetString("department-console-unknown");
+            var jobTitle = idCard.LocalizedJobTitle ?? Loc.GetString("department-console-unknown");
             var hasOverride = comp.SalaryOverrides.ContainsKey(idCardUid);
             var salary = hasOverride ? comp.SalaryOverrides[idCardUid] : comp.DefaultSalary;
 
@@ -271,7 +380,7 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
         var catalog = BuildCatalog(uid, comp.AsrsFaction);
 
         var state = new DepartmentConsoleBuiState(
-            comp.DepartmentName,
+            Loc.GetString(comp.DepartmentName),
             comp.DepartmentBudget,
             comp.DefaultSalary,
             employees,
@@ -345,7 +454,7 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
         // Check if the user has access to operate the console
         if (!_accessReader.IsAllowed(args.User, uid))
         {
-            _popup.PopupEntity("Access denied.", uid, args.User);
+            _popup.PopupEntity(Loc.GetString("department-console-access-denied"), uid, args.User);
             return;
         }
 
@@ -367,8 +476,10 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
         GrantDepartmentAccess(idCardUid, comp);
         UpdateAllUiForDepartment(uid, comp);
 
-        var name = idCard.FullName ?? "Unknown";
-        _popup.PopupEntity($"{name} has been hired to {comp.DepartmentName}.", uid, args.User);
+        var name = idCard.FullName ?? Loc.GetString("department-console-unknown");
+        _popup.PopupEntity(Loc.GetString("department-console-hired",
+            ("name", name),
+            ("department", Loc.GetString(comp.DepartmentName))), uid, args.User);
     }
 
     private void OnFire(EntityUid uid, DepartmentConsoleComponent comp, DepartmentConsoleFireBuiMsg msg)
@@ -429,7 +540,8 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
                 filter.AddPlayer(session);
         }
 
-        var sender = $"{comp.DepartmentName} Dept.";
+        var sender = Loc.GetString("department-console-dept-sender",
+            ("department", Loc.GetString(comp.DepartmentName)));
         var announcementSound = new SoundPathSpecifier("/Audio/Announcements/announce.ogg");
         _chatSystem.DispatchFilteredAnnouncement(filter, msg.Message, uid, sender, true, announcementSound);
     }
@@ -504,9 +616,9 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
         if (elevator == null)
             return;
 
-        var orderedBy = "Unknown";
+        var orderedBy = Loc.GetString("department-console-unknown");
         if (_idCard.TryFindIdCard(msg.Actor, out var actorId))
-            orderedBy = actorId.Comp.FullName ?? "Unknown";
+            orderedBy = actorId.Comp.FullName ?? Loc.GetString("department-console-unknown");
 
         var deptOrder = new RequisitionsEntry
         {
@@ -515,8 +627,10 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
             Crate = entry.Crate,
             Entities = new List<EntProtoId>(entry.Entities),
             DeptOrderedBy = orderedBy,
-            DeptReason = string.IsNullOrWhiteSpace(msg.Reason) ? "No reason given" : msg.Reason,
-            DeptDeliverTo = string.IsNullOrWhiteSpace(msg.DeliverTo) ? "No location specified" : msg.DeliverTo,
+            DeptReason = string.IsNullOrWhiteSpace(msg.Reason)
+                ? Loc.GetString("department-console-no-reason") : msg.Reason,
+            DeptDeliverTo = string.IsNullOrWhiteSpace(msg.DeliverTo)
+                ? Loc.GetString("department-console-no-location") : msg.DeliverTo,
             DeptAccessLevel = comp.DepartmentAccessLevel?.Id,
             DeptName = comp.DepartmentName,
         };
@@ -568,7 +682,10 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
             // Skip this department if it can't afford its salaries
             if (deptCost > dept.DepartmentBudget)
             {
-                announcements.Add($"[bold]{dept.DepartmentName}[/bold]: Insufficient department budget (need ${deptCost:F0}, have ${dept.DepartmentBudget:F0})");
+                announcements.Add(Loc.GetString("department-console-insufficient-budget",
+                    ("department", Loc.GetString(dept.DepartmentName)),
+                    ("need", $"{deptCost:F0}"),
+                    ("have", $"{dept.DepartmentBudget:F0}")));
                 continue;
             }
 
@@ -598,13 +715,23 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
             if (totalTaxCollected > 0)
                 _budget.AddToBudget(totalTaxCollected);
 
-            announcements.Add($"[bold]{dept.DepartmentName}[/bold]: ${deptCost:F0} dispensed" +
-                (totalTaxCollected > 0 ? $" (${totalTaxCollected:F0} income tax)" : ""));
+            if (totalTaxCollected > 0)
+            {
+                announcements.Add(Loc.GetString("department-console-salary-dispensed-tax",
+                    ("department", Loc.GetString(dept.DepartmentName)),
+                    ("amount", $"{deptCost:F0}"),
+                    ("tax", $"{totalTaxCollected:F0}")));
+            }
+            else
+            {
+                announcements.Add(Loc.GetString("department-console-salary-dispensed",
+                    ("department", Loc.GetString(dept.DepartmentName)),
+                    ("amount", $"{deptCost:F0}")));
+            }
 
             dept.DepartmentBudget -= deptCost;
             UpdateAllUiForDepartment(deptUid, dept);
         }
-
 
         // Announce salary dispensal colony-wide
         if (announcements.Count > 0)
@@ -669,9 +796,8 @@ public sealed partial class DepartmentConsoleSystem : EntitySystem
             if (dept.DepartmentId != null && !seenDepartments.Add(dept.DepartmentId))
                 continue;
 
-            result.Add((GetNetEntity(uid), dept.DepartmentName, dept.DepartmentBudget));
+            result.Add((GetNetEntity(uid), Loc.GetString(dept.DepartmentName), dept.DepartmentBudget));
         }
         return result;
     }
 }
-

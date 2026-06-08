@@ -179,7 +179,7 @@ public partial class ChatBox : UIWidget
                 return;
 
             if (msg is { Read: false, AudioPath: { } })
-                _entManager.System<AudioSystem>().PlayGlobal(msg.AudioPath, Filter.Local(), false, AudioParams.Default.WithVolume(msg.AudioVolume));
+                _entManager.System<AudioSystem>().PlayGlobal(new ResolvedPathSpecifier(msg.AudioPath), Filter.Local(), false, AudioParams.Default.WithVolume(msg.AudioVolume));
 
             msg.Read = true;
             return;
@@ -200,7 +200,7 @@ public partial class ChatBox : UIWidget
             return;
 
         if (msg is { Read: false, AudioPath: { } })
-            _entManager.System<AudioSystem>().PlayGlobal(msg.AudioPath, Filter.Local(), false, AudioParams.Default.WithVolume(msg.AudioVolume));
+            _entManager.System<AudioSystem>().PlayGlobal(new ResolvedPathSpecifier(msg.AudioPath), Filter.Local(), false, AudioParams.Default.WithVolume(msg.AudioVolume));
 
         msg.Read = true;
 
@@ -1116,7 +1116,9 @@ public partial class ChatBox : UIWidget
     {
         var style = ChatUserSettings.ResolveStyle(_styles, msg);
         var styleColor = ChatUserSettings.ResolveColor(style);
-        var fontSize = ChatUserSettings.ResolveFontSize(style) ?? ChatUserSettings.DefaultFontSize;
+        var fontSize = ChatUserSettings.ResolveFontSize(style) ??
+                       ChatUserSettings.ResolveMarkupFontSize(msg.WrappedMessage) ??
+                       ChatUserSettings.DefaultFontSize;
         var accentColor = styleColor ?? msg.Display?.AccentColor;
         var messageColor = styleColor ?? msg.MessageColorOverride ?? msg.Display?.AccentColor ?? msg.Channel.TextColor();
         var bodyColor = _colorWholeMessage ? messageColor : StructuredMessageTextColor;

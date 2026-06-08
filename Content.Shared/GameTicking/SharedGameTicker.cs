@@ -18,7 +18,6 @@ namespace Content.Shared.GameTicking
         // See ideally these would be pulled from the job definition or something.
         // But this is easier, and at least it isn't hardcoded.
         //TODO: Move these, they really belong in StationJobsSystem or a cvar.
-        [ValidatePrototypeId<JobPrototype>]
         public static readonly ProtoId<JobPrototype> FallbackOverflowJob = "CMRifleman";
 
         public const string FallbackOverflowJobName = "cm-job-name-rifleman";
@@ -226,6 +225,7 @@ namespace Content.Shared.GameTicking
         public int RoundId { get; }
         public int PlayerCount { get; }
         public RoundEndPlayerInfo[] AllPlayersEndInfo { get; }
+        public RoundEndSummaryStats SummaryStats { get; }
 
         /// <summary>
         /// Sound gets networked due to how entity lifecycle works between client / server and to avoid clipping.
@@ -239,7 +239,8 @@ namespace Content.Shared.GameTicking
             int roundId,
             int playerCount,
             RoundEndPlayerInfo[] allPlayersEndInfo,
-            ResolvedSoundSpecifier? restartSound)
+            ResolvedSoundSpecifier? restartSound,
+            RoundEndSummaryStats summaryStats)
         {
             GamemodeTitle = gamemodeTitle;
             RoundEndText = roundEndText;
@@ -248,6 +249,7 @@ namespace Content.Shared.GameTicking
             PlayerCount = playerCount;
             AllPlayersEndInfo = allPlayersEndInfo;
             RestartSound = restartSound;
+            SummaryStats = summaryStats;
         }
     }
 

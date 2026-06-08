@@ -109,8 +109,8 @@
 - type: entity
   parent: RMCBannerBase
   id: RMCBannerWEYA
-  name: WEYA flag
-  description: A flag of the Weston-Yamada Corporation. Inspires patriotism, fear, or revulsion depending on the viewer's political leanings.
+  name: WEYU flag
+  description: A flag of the Weyland-Yutani Corporation. Inspires patriotism, fear, or revulsion depending on the viewer's political leanings.
   components:
   - type: Sprite
     state: weyaflag

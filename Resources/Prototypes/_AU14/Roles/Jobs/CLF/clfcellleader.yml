@@ -7,11 +7,8 @@
   ignoreAllegiance: true
   playTimeTracker: AU14JobCLFCellLeader
   requirements:
-  - !type:DepartmentTimeRequirement
-    department: AU14DepartmentColonialLiberationFront
-    time: 36000 # 10 hours
   - !type:OverallPlaytimeRequirement
-    time: 36000 # 10 hours
+    time: 18000 # 5 hours
   - !type:TraitsRequirement
     inverted: true
     traits:
@@ -78,6 +75,7 @@
     head: AU14CivBallCapBlack
     id: AU14IDCardCLFCellLeader
     eyes: RMCGlassesAviators
+    pocket1: AU14StampCLFCell
   inhand:
   - AU14CLFCellKit
   - AU14CLFHeadset

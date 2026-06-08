@@ -40,6 +40,12 @@ namespace Content.Client.Viewport
         public int CurrentRenderScale => _curRenderScale;
 
         /// <summary>
+        ///     Enables CMU multi-Z composition for this viewport.
+        /// </summary>
+        [ViewVariables(VVAccess.ReadWrite)]
+        public bool RenderZLevels { get; set; }
+
+        /// <summary>
         ///     The eye to render.
         /// </summary>
         public IEye? Eye
@@ -150,7 +156,14 @@ namespace Content.Client.Viewport
 
             DebugTools.AssertNotNull(_viewport);
 
-            _viewport!.Render();
+            if (RenderZLevels)
+                RenderZLevelPasses(_viewport!);
+            else
+            {
+                NoteZRenderBypassed("viewport RenderZLevels=false");
+                ClearZLevelCompositeState();
+                _viewport!.Render();
+            }
 
             if (_queuedScreenshots.Count != 0)
             {
@@ -171,6 +184,7 @@ namespace Content.Client.Viewport
             var drawBoxGlobal = drawBox.Translated(GlobalPixelPosition);
             _viewport.RenderScreenOverlaysBelow(handle, this, drawBoxGlobal);
             handle.DrawingHandleScreen.DrawTextureRect(_viewport.RenderTarget.Texture, drawBox);
+            DrawZLevelComposites(handle, drawBox);
             _viewport.RenderScreenOverlaysAbove(handle, this, drawBoxGlobal);
         }
 
@@ -189,20 +203,7 @@ namespace Content.Client.Viewport
 
             if (FixedStretchSize == null)
             {
-                var (ratioX, ratioY) = ourSize / vpSize;
-                var ratio = 1f;
-                switch (_ignoreDimension)
-                {
-                    case ScalingViewportIgnoreDimension.None:
-                        ratio = Math.Min(ratioX, ratioY);
-                        break;
-                    case ScalingViewportIgnoreDimension.Vertical:
-                        ratio = ratioX;
-                        break;
-                    case ScalingViewportIgnoreDimension.Horizontal:
-                        ratio = ratioY;
-                        break;
-                }
+                var ratio = GetEffectiveScaleRatio(ourSize, vpSize);
 
                 var size = vpSize * ratio;
                 // Size
@@ -224,8 +225,7 @@ namespace Content.Client.Viewport
 
             var vpSizeBase = ViewportSize;
             var ourSize = PixelSize;
-            var (ratioX, ratioY) = ourSize / (Vector2) vpSizeBase;
-            var ratio = Math.Min(ratioX, ratioY);
+            var ratio = GetEffectiveScaleRatio(ourSize, vpSizeBase);
             var renderScale = 1;
             switch (_renderScaleMode)
             {
@@ -257,6 +257,19 @@ namespace Content.Client.Viewport
             _viewport.Eye = _eye;
         }
 
+        private float GetEffectiveScaleRatio(Vector2 controlSize, Vector2 viewportSize)
+        {
+            var (ratioX, ratioY) = controlSize / viewportSize;
+
+            return _ignoreDimension switch
+            {
+                ScalingViewportIgnoreDimension.None => Math.Min(ratioX, ratioY),
+                ScalingViewportIgnoreDimension.Vertical => ratioX,
+                ScalingViewportIgnoreDimension.Horizontal => ratioY,
+                _ => Math.Min(ratioX, ratioY),
+            };
+        }
+
         protected override void Resized()
         {
             base.Resized();
@@ -268,6 +281,7 @@ namespace Content.Client.Viewport
         {
             _viewport?.Dispose();
             _viewport = null;
+            DisposeZLevelViewports();
         }
 
         public MapCoordinates ScreenToMap(Vector2 coords)
@@ -280,7 +294,7 @@ namespace Content.Client.Viewport
             Matrix3x2.Invert(GetLocalToScreenMatrix(), out var matrix);
             coords = Vector2.Transform(coords, matrix);
 
-            return _viewport!.LocalToWorld(coords);
+            return ProjectViewportLocalToMap(coords);
         }
 
         /// <inheritdoc/>
@@ -297,7 +311,39 @@ namespace Content.Client.Viewport
             var ev = new PixelToMapEvent(coords, this, _viewport!);
             _entityManager.EventBus.RaiseEvent(EventSource.Local, ref ev);
 
-            return _viewport!.LocalToWorld(ev.VisiblePosition);
+            return ProjectViewportLocalToMap(ev.VisiblePosition);
+        }
+
+        private MapCoordinates ProjectViewportLocalToMap(Vector2 coords)
+        {
+            DebugTools.AssertNotNull(_viewport);
+
+            var projectionEye = GetInputProjectionEye(_eye, _viewport!.Eye);
+            return projectionEye == null
+                ? default
+                : ProjectViewportLocalToMap(coords, _viewport.Size, _viewport.RenderScale, projectionEye);
+        }
+
+        internal static IEye? GetInputProjectionEye(IEye? controlEye, IEye? renderEye)
+        {
+            return renderEye is ZEye && controlEye != null
+                ? controlEye
+                : renderEye;
+        }
+
+        internal static MapCoordinates ProjectViewportLocalToMap(
+            Vector2 point,
+            Vector2i viewportSize,
+            Vector2 renderScale,
+            IEye eye)
+        {
+            point -= viewportSize / 2f;
+            point *= new Vector2(1, -1) / EyeManager.PixelsPerMeter;
+
+            eye.GetViewMatrixInv(out var viewMatrixInv, renderScale);
+            point = Vector2.Transform(point, viewMatrixInv);
+
+            return new MapCoordinates(point, eye.Position.MapId);
         }
 
         public Vector2 WorldToScreen(Vector2 map)

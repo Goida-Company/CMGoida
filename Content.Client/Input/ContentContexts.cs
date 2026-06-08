@@ -151,6 +151,8 @@ namespace Content.Client.Input
             human.AddFunction(CMKeyFunctions.RMCRest);
             human.AddFunction(CMUKeyFunctions.CMUCycleBodyZoneTarget);
             human.AddFunction(CMUKeyFunctions.CMUCycleBodyZoneTargetReverse);
+            human.AddFunction(CMUKeyFunctions.CMUOpenMedicalCraftingMenu);
+            human.AddFunction(CMUKeyFunctions.CMUToggleShootDownZLevel);
 
             //Xenonid
             var xenonid = contexts.New("xenonid", "human");

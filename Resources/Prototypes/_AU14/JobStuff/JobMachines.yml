@@ -60,15 +60,16 @@
     probability: 100
   - type: SubmissionStorage
     rewards:
-      SteelOre: 100
+      SteelOre: 30
       AUwood: 25
       Vegetable: 10
-      Fruit: 20
-      CottonBoll: 15
-      CMUGrain: 15
+      Fruit: 2
+      CottonBoll: 4
+      CMUGrain: 2
   - type: ContainerContainer
     containers:
       submission: !type:Container
+      disposals: !type:Container
   - type: DisposalUnit
     whitelist:
       tags:
@@ -88,11 +89,14 @@
   components:
   - type: SubmissionStorage
     rewards:
-      SteelOre: 100
+      SteelOre: 10
   - type: DisposalUnit
     whitelist:
       tags:
       - SteelOre
+
+- type: Tag
+  id: SteelOre
 
 - type: entity
   parent: AUSubmissionPointBase
@@ -103,11 +107,14 @@
   components:
   - type: SubmissionStorage
     rewards:
-      AUwood: 25
+      AUwood: 20
   - type: DisposalUnit
     whitelist:
       tags:
       - AUwood
+
+- type: Tag
+  id: AUwood
 
 - type: entity
   parent: AUSubmissionPointBase
@@ -118,7 +125,7 @@
   components:
   - type: SubmissionStorage
     rewards:
-      Vegetable: 10
+      Vegetable: 2
   - type: DisposalUnit
     whitelist:
       tags:
@@ -132,7 +139,7 @@
   components:
   - type: SubmissionStorage
     rewards:
-      Fruit: 20
+      Fruit: 2
   - type: DisposalUnit
     whitelist:
       tags:
@@ -225,12 +232,6 @@
         - Fruit
 # RuCM change end
 
-- type: Tag
-  id: SteelOre
-
-- type: Tag
-  id: AUwood
-
 - type: entity
   parent: RMCCommunicationsConsoleBase
   id: AUColonyCommsConsole
@@ -247,6 +248,8 @@
     interfaces:
       enum.ColonyCommsConsoleUI.Key:
         type: ColonyCommsConsoleBui
+  - type: AccessReader
+    access: [[ "CMAccessColonyCommand" ]]
   - type: ActivatableUIBlacklist
     blacklist:
       components:
@@ -386,7 +389,7 @@
   description: Manages employees, salaries, and announcements for the Medical department.
   components:
   - type: DepartmentConsole
-    departmentName: Medical
+    departmentName: department-AU14Medical
     departmentId: AU14DepartmentColonyMedical
     departmentAccessLevel: CMAccessColonyMedbay
     defaultSalary: 50
@@ -400,7 +403,7 @@
   description: Manages employees, salaries, and announcements for the Engineering department.
   components:
   - type: DepartmentConsole
-    departmentName: Engineering
+    departmentName: department-AU14Engineering
     departmentId: AU14DepartmentEngineering
     departmentAccessLevel: CMAccessColonyEngineering
     defaultSalary: 50
@@ -414,7 +417,7 @@
   description: Manages employees, salaries, and announcements for the Security department.
   components:
   - type: DepartmentConsole
-    departmentName: Security
+    departmentName: department-AU14Security
     departmentId: AU14DepartmentColonySecurity
     departmentAccessLevel: CMAccessColonyBrig
     defaultSalary: 60
@@ -429,7 +432,7 @@
   description: Manages employees, salaries, and announcements for the Labor department.
   components:
   - type: DepartmentConsole
-    departmentName: Cargo
+    departmentName: department-AU14Cargo
     departmentId: AU14DepartmentLabor
     departmentAccessLevel: CMAccessColonyLogistics
     defaultSalary: 45
@@ -443,7 +446,7 @@
   description: Manages employees, salaries, and announcements for the Command department.
   components:
   - type: DepartmentConsole
-    departmentName: Command
+    departmentName: department-AU14Command
     departmentId: AU14DepartmentColonyCommand
     departmentAccessLevel: CMAccessColonyCommand
     defaultSalary: 75
@@ -457,7 +460,7 @@
   description: Manages employees, salaries, and announcements for the Civilian department.
   components:
   - type: DepartmentConsole
-    departmentName: Civilian
+    departmentName: department-AU14Civilian
     departmentId: AU14DepartmentCivilian
     departmentAccessLevel: CMAccessColonyPublic
     defaultSalary: 40
@@ -471,7 +474,7 @@
   description: Manages employees, salaries, and announcements for the Services department.
   components:
   - type: DepartmentConsole
-    departmentName: Services
+    departmentName: department-AU14Services
     departmentId: AU14DepartmentServices
     departmentAccessLevel: CMAccessColonyPublic
     defaultSalary: 40
@@ -485,7 +488,7 @@
   description: Manages employees, salaries, and announcements for the Corporate department.
   components:
   - type: DepartmentConsole
-    departmentName: Corporate
+    departmentName: department-AU14Corporate
     departmentId: AU14DepartmentCorporate
     departmentAccessLevel: CMAccessColonyResearch
     defaultSalary: 55
@@ -501,7 +504,7 @@
   description: Manages employees, salaries, and announcements for the Hydroponics department.
   components:
   - type: DepartmentConsole
-    departmentName: Hydroponics
+    departmentName: department-AU14Hydroponics
     departmentId: AU14DepartmentHydroponics
     departmentAccessLevel: CMAccessColonyPublic
     defaultSalary: 45
@@ -515,7 +518,7 @@
   description: Manages employees, salaries, and announcements for the Lumbermill department.
   components:
   - type: DepartmentConsole
-    departmentName: Lumbermill
+    departmentName: department-AU14Lumbermill
     departmentId: AU14DepartmentLumbermill
     departmentAccessLevel: CMAccessColonyPublic
     defaultSalary: 45

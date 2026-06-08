@@ -65,9 +65,10 @@ id_job_length = 50
 [infolinks]
 #appeal = "https://discord.gg/FtsCESsrzD"
 bug_report = "https://github.com/AU-14/ColonialMarinesUniverse/issues"
-discord = "https://discord.gg/FtsCESsrzD"
+discord = "https://discord.gg/kEZ6ueCqYc"
 forum = "https://forum.cm-ss13.com"
 github = "https://github.com/AU-14/ColonialMarinesUniverse"
+boosty = "https://boosty.to/rumarinecorps"
 #patreon = "https://github.com/AU-14/ColonialMarinesUniverse"
 #website = ""
 wiki = "https://cm-ss13.com/wiki/Main_Page"
@@ -75,6 +76,7 @@ wiki = "https://cm-ss13.com/wiki/Main_Page"
 [net]
 tickrate = 25
 bindto = "::,0.0.0.0"
+max_connections = 500
 log_late_msg = false
 
 [physics]
@@ -97,6 +99,7 @@ auto_record_name = "done/{year}_{month}_{day}-{hour}_{minute}-round_{round}.zip"
 
 [rmc]
 discord_account_linking_message_link = "https://discord.com/channels/1168210010233376858/1256765329002991679/1256767294839980132"
+lobby_min_players = 20
 
 [server]
 rules_file = "RMCOverview"

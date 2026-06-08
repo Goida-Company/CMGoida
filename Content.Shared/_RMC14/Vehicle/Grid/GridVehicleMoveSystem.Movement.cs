@@ -1,12 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using Content.Shared._CMU14.Blackfoot;
 using Content.Shared.Vehicle.Components;
 using Content.Shared._RMC14.Vehicle;
+using Robust.Shared.Audio;
 using Robust.Shared.GameObjects;
 using Robust.Shared.Map;
 using Robust.Shared.Map.Components;
 using Robust.Shared.Maths;
+using Robust.Shared.Player;
 
 namespace Content.Shared.Vehicle;
 
@@ -294,13 +297,26 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
             return false;
 
         var desiredRot = DirectionToVehicleRotation(desiredFacing);
-        var immediateClear = TryFindTurnPosition(uid, mover, grid, gridComp, desiredRot, out var turnPosition);
+
+        Vector2 turnPosition;
+        if (mover.TurnNudgeSkipSteps > 0 && mover.TurnNudgeCacheDir == desiredFacing)
+        {
+            mover.TurnNudgeSkipSteps--;
+            return false;
+        }
+
+        var immediateClear = TryFindTurnPosition(uid, mover, grid, gridComp, desiredRot, out turnPosition);
         if (!immediateClear &&
             (!allowMoveClearance ||
              !TryFindTransientTurnClearance(uid, mover, grid, desiredFacing, desiredRot, out turnPosition)))
         {
+            mover.TurnNudgeCacheDir = desiredFacing;
+            mover.TurnNudgeSkipSteps = 2;
             return false;
         }
+
+        mover.TurnNudgeSkipSteps = 0;
+        mover.TurnNudgeCacheDir = Vector2i.Zero;
 
         if (!CanOccupyTransform(uid, mover, grid, turnPosition, desiredRot, Clearance, applyEffects: true))
             return false;
@@ -342,35 +358,29 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
 
         var step = Math.Clamp(mover.MovementProbeStep, 0.02f, 0.5f);
         var steps = Math.Max(1, (int) MathF.Ceiling(maxDistance / step));
-        var initialBlockers = new HashSet<EntityUid>();
-        if (CanOccupyTransform(uid, mover, grid, mover.Position, desiredRot, Clearance, applyEffects: false, blockers: initialBlockers) ||
-            initialBlockers.Count == 0)
+        _bypassInitialBlockers.Clear();
+        if (CanOccupyTransform(uid, mover, grid, mover.Position, desiredRot, Clearance, applyEffects: false, blockers: _bypassInitialBlockers) ||
+            _bypassInitialBlockers.Count == 0)
         {
             return false;
         }
 
-        var sampleBlockers = new HashSet<EntityUid>();
         for (var i = 1; i <= steps; i++)
         {
             var distance = MathF.Min(i * step, maxDistance);
             var sample = mover.Position + forward * distance;
-            sampleBlockers.Clear();
-            if (CanOccupyTransform(uid, mover, grid, sample, desiredRot, Clearance, applyEffects: false, blockers: sampleBlockers))
+            _bypassSampleBlockers.Clear();
+            if (CanOccupyTransform(uid, mover, grid, sample, desiredRot, Clearance, applyEffects: false, blockers: _bypassSampleBlockers))
             {
                 clearPosition = sample;
                 return true;
             }
 
-            foreach (var blocker in sampleBlockers)
+            foreach (var blocker in _bypassSampleBlockers)
             {
-                if (!initialBlockers.Contains(blocker))
+                if (!_bypassInitialBlockers.Contains(blocker))
                     return false;
             }
-
-            if (sampleBlockers.Count > 0)
-                continue;
-
-            return false;
         }
 
         return false;
@@ -716,6 +726,14 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
             limit);
         var sampleSteps = (int) MathF.Ceiling(limit / step);
         var lookahead = Math.Max(1, mover.TileOffsetLookahead);
+
+        if (!CanOccupyMoveLane(uid, mover, grid, gridComp, moveDir, rotation, target, 0f, lookahead, ignoredEntities) &&
+            !CanOccupyMoveLane(uid, mover, grid, gridComp, moveDir, rotation, target, limit, lookahead, ignoredEntities) &&
+            !CanOccupyMoveLane(uid, mover, grid, gridComp, moveDir, rotation, target, -limit, lookahead, ignoredEntities))
+        {
+            return false;
+        }
+
         var foundLane = false;
         var bestOffset = baseOffset;
         var bestScore = float.MaxValue;
@@ -775,7 +793,7 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
         var forward = new Vector2(moveDir.X, moveDir.Y);
         var tileSize = MathF.Max(1f, gridComp.TileSize);
 
-        for (var i = 0; i < lookahead; i++)
+        for (var i = lookahead - 1; i >= 0; i--)
         {
             var sample = target + forward * (tileSize * i);
             var tile = GetTile(grid, gridComp, sample);
@@ -851,6 +869,20 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
         HashSet<EntityUid>? ignoredEntities = null)
     {
         blocked = false;
+        var start = mover.Position;
+        var delta = target - start;
+        var distance = delta.Length();
+
+        if (applyBlockEffects && distance > MinMoveDistance)
+        {
+            var probeStep = Math.Clamp(mover.MovementProbeStep, 0.02f, 0.5f);
+            var steps = Math.Max(1, (int) MathF.Ceiling(distance / probeStep));
+            for (var i = 1; i < steps; i++)
+            {
+                var candidate = start + delta * (i / (float) steps);
+                CanOccupyTransform(uid, mover, grid, candidate, rotation, Clearance, applyEffects: true, debug: false, ignoredEntities: ignoredEntities);
+            }
+        }
 
         if (applyBlockEffects &&
             !CanOccupyTransform(uid, mover, grid, target, rotation, Clearance, applyEffects: true, debug: false, ignoredEntities: ignoredEntities))
@@ -901,23 +933,31 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
             if (TryTurnNudgePosition(uid, mover, grid, gridComp, currentTile, desiredRot, new Vector2(0f, -axialDistance), min, max, out turnPosition))
                 return true;
 
-            for (var x = -ring; x <= ring; x++)
+            var outerDist = Math.Clamp(ring * step, 0f, limit);
+            for (var yi = -ring; yi <= ring; yi++)
             {
-                for (var y = -ring; y <= ring; y++)
-                {
-                    if (Math.Max(Math.Abs(x), Math.Abs(y)) != ring)
-                        continue;
+                if (yi == 0)
+                    continue;
 
-                    if (x == 0 || y == 0)
-                        continue;
+                var innerY = Math.Clamp(MathF.Abs(yi) * step, 0f, limit) * MathF.Sign(yi);
+                if (TryTurnNudgePosition(uid, mover, grid, gridComp, currentTile, desiredRot, new Vector2(outerDist, innerY), min, max, out turnPosition))
+                    return true;
 
-                    var offset = new Vector2(
-                        Math.Clamp(x * step, -limit, limit),
-                        Math.Clamp(y * step, -limit, limit));
+                if (TryTurnNudgePosition(uid, mover, grid, gridComp, currentTile, desiredRot, new Vector2(-outerDist, innerY), min, max, out turnPosition))
+                    return true;
+            }
 
-                    if (TryTurnNudgePosition(uid, mover, grid, gridComp, currentTile, desiredRot, offset, min, max, out turnPosition))
-                        return true;
-                }
+            for (var xi = -(ring - 1); xi <= ring - 1; xi++)
+            {
+                if (xi == 0)
+                    continue;
+
+                var innerX = Math.Clamp(MathF.Abs(xi) * step, 0f, limit) * MathF.Sign(xi);
+                if (TryTurnNudgePosition(uid, mover, grid, gridComp, currentTile, desiredRot, new Vector2(innerX, outerDist), min, max, out turnPosition))
+                    return true;
+
+                if (TryTurnNudgePosition(uid, mover, grid, gridComp, currentTile, desiredRot, new Vector2(innerX, -outerDist), min, max, out turnPosition))
+                    return true;
             }
         }
 
@@ -999,6 +1039,9 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
             maxSpeed *= speedMod.SpeedMultiplier;
         if (TryComp<VehicleMechanicalFailureModifierComponent>(uid, out var failureMod))
             maxSpeed *= failureMod.SpeedMultiplier;
+        maxSpeed *= GetBlackfootAirSpeedMultiplier(uid);
+        if (TryGetBlackfootTowTaxiMultiplier(uid, out var taxiMultiplier))
+            maxSpeed *= taxiMultiplier.Speed;
         if (HasXenoOccupant(uid))
             maxSpeed *= XenoOnboardSpeedMultiplier;
 
@@ -1018,6 +1061,9 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
             maxSpeed *= speedMod.SpeedMultiplier;
         if (TryComp<VehicleMechanicalFailureModifierComponent>(uid, out var failureMod))
             maxSpeed *= failureMod.ReverseSpeedMultiplier;
+        maxSpeed *= GetBlackfootAirSpeedMultiplier(uid);
+        if (TryGetBlackfootTowTaxiMultiplier(uid, out var taxiMultiplier))
+            maxSpeed *= taxiMultiplier.Speed;
         if (HasXenoOccupant(uid))
             maxSpeed *= XenoOnboardSpeedMultiplier;
 
@@ -1027,6 +1073,44 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
     private bool HasXenoOccupant(EntityUid vehicle)
     {
         return TryComp(vehicle, out VehicleInteriorComponent? interior) && interior.Xenos.Count > 0;
+    }
+
+    private float GetBlackfootAirSpeedMultiplier(EntityUid uid)
+    {
+        if (!TryComp(uid, out BlackfootFlightComponent? flight))
+            return 1f;
+
+        var multiplier = flight.State switch
+        {
+            BlackfootFlightState.Flight => flight.FlightSpeedMultiplier,
+            BlackfootFlightState.VTOL or BlackfootFlightState.Landing => flight.VTOLSpeedMultiplier,
+            _ => 1f,
+        };
+
+        return multiplier > 0f ? multiplier : 1f;
+    }
+
+    private (float Speed, float Acceleration)? GetBlackfootTowTaxiMultiplier(EntityUid uid)
+    {
+        if (!TryComp(uid, out BlackfootTowComponent? tow) ||
+            tow.TowVehicle == null)
+        {
+            return null;
+        }
+
+        return (MathF.Max(0f, tow.TaxiSpeedMultiplier), MathF.Max(0f, tow.TaxiAccelerationMultiplier));
+    }
+
+    private bool TryGetBlackfootTowTaxiMultiplier(EntityUid uid, out (float Speed, float Acceleration) multiplier)
+    {
+        if (GetBlackfootTowTaxiMultiplier(uid) is { } value)
+        {
+            multiplier = value;
+            return true;
+        }
+
+        multiplier = default;
+        return false;
     }
 
     private float GetIntegritySpeedMultiplier(EntityUid uid, GridVehicleMoverComponent mover)
@@ -1048,6 +1132,8 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
             multiplier = MathF.Max(0.05f, accelMod.AccelerationMultiplier);
         if (TryComp<VehicleMechanicalFailureModifierComponent>(uid, out var failureMod))
             multiplier *= MathF.Max(0.05f, failureMod.AccelerationMultiplier);
+        if (TryGetBlackfootTowTaxiMultiplier(uid, out var taxiMultiplier))
+            multiplier *= taxiMultiplier.Acceleration;
 
         if (HasXenoOccupant(uid))
             multiplier *= XenoOnboardAccelerationMultiplier;
@@ -1141,7 +1227,7 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
             return;
 
         var coords = new EntityCoordinates(grid, gridPos);
-        var local = coords.WithEntityId(xform.ParentUid, transform, EntityManager).Position;
+        var local = transform.WithEntityId(coords, xform.ParentUid).Position;
 
         transform.SetLocalPosition(uid, local, xform);
     }
@@ -1168,8 +1254,47 @@ public sealed partial class GridVehicleMoverSystem : EntitySystem
             return;
 
         _audio.PlayPvs(sound.RunningSound, uid);
+        PlayBlackfootInteriorRunningSound(uid, sound.RunningSound);
         sound.NextRunningSound = now + TimeSpan.FromSeconds(sound.RunningSoundCooldown);
         Dirty(uid, sound);
+    }
+
+    private void PlayBlackfootInteriorRunningSound(EntityUid uid, SoundSpecifier runningSound)
+    {
+        if (!HasComp<BlackfootFlightComponent>(uid))
+            return;
+
+        var filter = GetBlackfootInteriorSoundFilter(uid);
+        if (filter.Count > 0)
+            _audio.PlayGlobal(runningSound, filter, true);
+    }
+
+    private Filter GetBlackfootInteriorSoundFilter(EntityUid vehicle)
+    {
+        var filter = Filter.Empty();
+        if (!TryComp(vehicle, out VehicleInteriorComponent? interior))
+            return filter;
+
+        foreach (var passenger in interior.Passengers)
+        {
+            AddBlackfootInteriorSoundRecipient(filter, passenger);
+        }
+
+        foreach (var xeno in interior.Xenos)
+        {
+            AddBlackfootInteriorSoundRecipient(filter, xeno);
+        }
+
+        return filter;
+    }
+
+    private void AddBlackfootInteriorSoundRecipient(Filter filter, EntityUid recipient)
+    {
+        if (TerminatingOrDeleted(recipient))
+            return;
+
+        if (TryComp(recipient, out ActorComponent? actor))
+            filter.AddPlayer(actor.PlayerSession);
     }
 
     private float GetSmashSlowdownMultiplier(GridVehicleMoverComponent mover)

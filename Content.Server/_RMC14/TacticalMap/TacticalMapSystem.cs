@@ -25,6 +25,7 @@ using Content.Shared._RMC14.Xenonids.Egg;
 using Content.Shared._RMC14.Xenonids.Evolution;
 using Content.Shared._RMC14.Xenonids.Eye;
 using Content.Shared._RMC14.Xenonids.HiveLeader;
+using Content.Shared._RMC14.Xenonids.Weeds;
 using Content.Shared.Actions;
 using Content.Shared.Atmos.Rotting;
 using Content.Shared.AU14.Objectives;
@@ -35,6 +36,7 @@ using Content.Shared.Mind.Components;
 using Content.Shared.Mobs;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Mobs.Systems;
+using Content.Shared.Popups;
 using Content.Shared.Roles;
 using Content.Shared.Traits.Assorted;
 using Content.Shared.UserInterface;
@@ -60,11 +62,13 @@ public sealed partial class TacticalMapSystem : SharedTacticalMapSystem
     [Dependency] private MarineAnnounceSystem _marineAnnounce = default!;
     [Dependency] private MobStateSystem _mobState = default!;
     [Dependency] private INetManager _net = default!;
+    [Dependency] private SharedPopupSystem _popup = default!;
     [Dependency] private SkillsSystem _skills = default!;
     [Dependency] private SquadSystem _squad = default!;
     [Dependency] private IGameTiming _timing = default!;
     [Dependency] private SharedTransformSystem _transform = default!;
     [Dependency] private SharedUserInterfaceSystem _ui = default!;
+    [Dependency] private SharedXenoWeedsSystem _weeds = default!;
     [Dependency] private XenoAnnounceSystem _xenoAnnounce = default!;
     [Dependency] private RMCUnrevivableSystem _unrevivableSystem = default!;
 
@@ -694,6 +698,38 @@ public sealed partial class TacticalMapSystem : SharedTacticalMapSystem
             Dirty(uid, computer);
         }
 
+        // Overwatch consoles route their canvas to the assigned squad's tacmap only
+        if (TryComp<OverwatchConsoleComponent>(ent.Owner, out var overwatch) &&
+            overwatch.Squad is { } overwatchSquadNet)
+        {
+            var overwatchSquadUid = GetEntity(overwatchSquadNet);
+            if (!TerminatingOrDeleted(overwatchSquadUid) &&
+                _squadTeamQuery.TryComp(overwatchSquadUid, out var overwatchSquadTeam))
+            {
+                overwatchSquadTeam.TacMapLines = new List<TacticalMapLine>(lines);
+                overwatchSquadTeam.TacMapLabels = new Dictionary<Vector2i, string>(labels);
+
+                foreach (var memberUid in overwatchSquadTeam.Members)
+                {
+                    if (TryComp<TacticalMapUserComponent>(memberUid, out var memberUser))
+                    {
+                        memberUser.SquadLines = new List<TacticalMapLine>(lines);
+                        memberUser.SquadLabels = new Dictionary<Vector2i, string>(labels);
+                        Dirty(memberUid, memberUser);
+                    }
+                }
+
+                _marineAnnounce.AnnounceOverwatchSquad(
+                    user,
+                    "The squad tactical map has been updated.",
+                    overwatchSquadUid,
+                    overwatchSquadTeam.Color,
+                    Name(overwatchSquadUid));
+
+                return;
+            }
+        }
+
         var (wantsMarines, wantsXenos, wantsOpfor, wantsGovfor, wantsClf) = ResolveComputerWriteFaction(ent, user);
         if (!wantsMarines && !wantsXenos && !wantsOpfor && !wantsGovfor && !wantsClf)
             return;
@@ -964,7 +1000,15 @@ public sealed partial class TacticalMapSystem : SharedTacticalMapSystem
             return;
 
         var tileCoords = new Vector2(position.X, position.Y);
-        var worldPos = _transform.ToMapCoordinates(new EntityCoordinates(map.Owner, tileCoords * grid.TileSize));
+        var targetCoords = new EntityCoordinates(map.Owner, tileCoords * grid.TileSize);
+
+        if (!_weeds.IsOnWeeds((map.Owner, grid), targetCoords))
+        {
+            _popup.PopupCursor(Loc.GetString("rmc-xeno-queen-eye-no-weeds"), user, PopupType.MediumCaution);
+            return;
+        }
+
+        var worldPos = _transform.ToMapCoordinates(targetCoords);
 
         _transform.SetWorldPosition(eye, worldPos.Position);
     }
@@ -1822,6 +1866,81 @@ public sealed partial class TacticalMapSystem : SharedTacticalMapSystem
             ApplyEnemySpritesToUser("CLF", user.Comp.ClfBlips, playerId);
         }
 
+        // Build squad blips for squad tacmap
+        if (TryComp<SquadMemberComponent>(user.Owner, out var squadMember) &&
+            squadMember.Squad is { } memberSquadUid &&
+            _squadTeamQuery.TryComp(memberSquadUid, out var memberSquadTeam))
+        {
+            user.Comp.HasSquad = true;
+
+            var fireteamNumbers = new Dictionary<int, int>();
+            for (var ft = 0; ft < memberSquadTeam.Fireteams.Fireteams.Length; ft++)
+            {
+                var fireteam = memberSquadTeam.Fireteams.Fireteams[ft];
+                if (fireteam == null)
+                    continue;
+
+                var ftNumber = ft + 1;
+                if (fireteam.Leader != null)
+                    fireteamNumbers[fireteam.Leader.Value.Id.Id] = ftNumber;
+
+                if (fireteam.Members != null)
+                {
+                    foreach (var (netEnt, _) in fireteam.Members)
+                        fireteamNumbers[netEnt.Id] = ftNumber;
+                }
+            }
+
+            var squadBlips = new Dictionary<int, TacticalMapBlip>();
+            foreach (var memberUid in memberSquadTeam.Members)
+            {
+                var blip = FindBlipInMap(memberUid.Id, map);
+                if (blip == null)
+                    continue;
+
+                var ftNum = fireteamNumbers.GetValueOrDefault(memberUid.Id, 0);
+                squadBlips[memberUid.Id] = blip.Value with { FireteamNumber = ftNum };
+            }
+
+            // Add comms towers and sensor towers to squad view
+            var squadComms = EntityQueryEnumerator<CommunicationsTowerComponent>();
+            while (squadComms.MoveNext(out var cid, out _))
+            {
+                var blip = FindBlipInMap(cid.Id, map);
+                if (blip != null && !squadBlips.ContainsKey(cid.Id))
+                {
+                    var img = blip.Value.Image ?? new SpriteSpecifier.Rsi(new ResPath("/Textures/_RMC14/Interface/map_blips.rsi"), "comms_tower");
+                    squadBlips[cid.Id] = new TacticalMapBlip(blip.Value.Indices, img, blip.Value.Color, blip.Value.Status, blip.Value.Background, blip.Value.HiveLeader);
+                }
+            }
+
+            var squadSensors = EntityQueryEnumerator<SensorTowerComponent>();
+            while (squadSensors.MoveNext(out var sid, out _))
+            {
+                var blip = FindBlipInMap(sid.Id, map);
+                if (blip != null && !squadBlips.ContainsKey(sid.Id))
+                {
+                    var img = blip.Value.Image ?? new SpriteSpecifier.Rsi(new ResPath("/Textures/_RMC14/Interface/map_blips.rsi"), "sensor_tower");
+                    squadBlips[sid.Id] = new TacticalMapBlip(blip.Value.Indices, img, blip.Value.Color, blip.Value.Status, blip.Value.Background, blip.Value.HiveLeader);
+                }
+            }
+
+            user.Comp.SquadBlips = squadBlips;
+            user.Comp.SquadLines = memberSquadTeam.TacMapLines.Count > 0
+                ? new List<TacticalMapLine>(memberSquadTeam.TacMapLines)
+                : _emptyLines;
+            user.Comp.SquadLabels = memberSquadTeam.TacMapLabels.Count > 0
+                ? new Dictionary<Vector2i, string>(memberSquadTeam.TacMapLabels)
+                : _emptyLabels;
+        }
+        else
+        {
+            user.Comp.HasSquad = false;
+            user.Comp.SquadBlips = new Dictionary<int, TacticalMapBlip>();
+            user.Comp.SquadLines = _emptyLines;
+            user.Comp.SquadLabels = _emptyLabels;
+        }
+
         Dirty(user, lines);
         Dirty(user, labels);
     }
@@ -2077,10 +2196,8 @@ public sealed partial class TacticalMapSystem : SharedTacticalMapSystem
         // Normalize the computer faction: empty => MARINES
         var normalizedFaction = string.IsNullOrWhiteSpace(computer.Comp.Faction) ? "MARINES" : computer.Comp.Faction.ToUpperInvariant();
 
-        // Only proceed if this faction actually has active sensors on the map.
-        if (!TeamHasActiveSensors(normalizedFaction))
-            return;
-
+        if (TeamHasActiveSensors(normalizedFaction))
+        {
         // Collect infrastructure IDs to exclude them from reduction
         var infraIds = new HashSet<int>();
         var comms = EntityQueryEnumerator<CommunicationsTowerComponent>();
@@ -2167,7 +2284,60 @@ public sealed partial class TacticalMapSystem : SharedTacticalMapSystem
             computer.Comp.Blips[id] = kv.Value;
         }
 
-        // Ensure the computer's UI reflects these changes immediately
+        } // end TeamHasActiveSensors block
+
+        // For overwatch consoles assigned to a squad, populate squad-specific blips and canvas.
+        if (TryComp<OverwatchConsoleComponent>(computer.Owner, out var overwatch) &&
+            overwatch.Squad is { } squadNetId)
+        {
+            var squadUid = GetEntity(squadNetId);
+            if (!TerminatingOrDeleted(squadUid) &&
+                _squadTeamQuery.TryComp(squadUid, out var squadTeam))
+            {
+                var fireteamNumbers = new Dictionary<int, int>();
+                for (var ft = 0; ft < squadTeam.Fireteams.Fireteams.Length; ft++)
+                {
+                    var fireteam = squadTeam.Fireteams.Fireteams[ft];
+                    if (fireteam == null) continue;
+                    var ftNumber = ft + 1;
+                    if (fireteam.Leader != null)
+                        fireteamNumbers[fireteam.Leader.Value.Id.Id] = ftNumber;
+                    if (fireteam.Members != null)
+                        foreach (var (netEnt, _) in fireteam.Members)
+                            fireteamNumbers[netEnt.Id] = ftNumber;
+                }
+
+                var squadBlips = new Dictionary<int, TacticalMapBlip>();
+                foreach (var memberUid in squadTeam.Members)
+                {
+                    var blip = FindBlipInMap(memberUid.Id, map);
+                    if (blip == null) continue;
+                    var ftNum = fireteamNumbers.GetValueOrDefault(memberUid.Id, 0);
+                    squadBlips[memberUid.Id] = blip.Value with { FireteamNumber = ftNum };
+                }
+
+                computer.Comp.SquadBlips = squadBlips;
+                computer.Comp.SquadLines = squadTeam.TacMapLines.Count > 0
+                    ? new List<TacticalMapLine>(squadTeam.TacMapLines)
+                    : _emptyLines;
+                computer.Comp.SquadLabels = squadTeam.TacMapLabels.Count > 0
+                    ? new Dictionary<Vector2i, string>(squadTeam.TacMapLabels)
+                    : _emptyLabels;
+            }
+            else
+            {
+                computer.Comp.SquadBlips = new Dictionary<int, TacticalMapBlip>();
+                computer.Comp.SquadLines = _emptyLines;
+                computer.Comp.SquadLabels = _emptyLabels;
+            }
+        }
+        else
+        {
+            computer.Comp.SquadBlips = new Dictionary<int, TacticalMapBlip>();
+            computer.Comp.SquadLines = _emptyLines;
+            computer.Comp.SquadLabels = _emptyLabels;
+        }
+
         Dirty(computer);
     }
 
@@ -2255,10 +2425,13 @@ public sealed partial class TacticalMapSystem : SharedTacticalMapSystem
                 // Advance the timer immediately to avoid re-entrancy causing multiple updates this tick.
                 map.NextUpdatePerFaction[faction] = time + _mapUpdateEvery;
 
-                // Update open computers that are configured for this faction
+                // Update open computers that are configured for this faction (skip overwatch consoles — they use per-console timers)
                 var computers = EntityQueryEnumerator<TacticalMapComputerComponent>();
                 while (computers.MoveNext(out var computerId, out var computer))
                 {
+                    if (HasComp<OverwatchConsoleComponent>(computerId))
+                        continue;
+
                     if (!_ui.IsUiOpen(computerId, TacticalMapComputerUi.Key))
                         continue;
 
@@ -2322,6 +2495,20 @@ public sealed partial class TacticalMapSystem : SharedTacticalMapSystem
                     else if (faction == "CLF" && tunnelUserComp.Clf)
                         UpdateUserData((tunnelUserId, tunnelUserComp), map);
                 }
+            }
+
+            // Per-console timer updates for overwatch consoles (independent of faction timers).
+            var overwatchConsoles = EntityQueryEnumerator<TacticalMapComputerComponent, OverwatchConsoleComponent>();
+            while (overwatchConsoles.MoveNext(out var consoleId, out var consoleComp, out _))
+            {
+                if (!_ui.IsUiOpen(consoleId, TacticalMapComputerUi.Key))
+                    continue;
+
+                if (time < consoleComp.NextUpdate)
+                    continue;
+
+                consoleComp.NextUpdate = time + _mapUpdateEvery;
+                UpdateMapData((consoleId, consoleComp), map);
             }
 
             // We've processed per-faction updates for this map this tick; clear dirty flag.

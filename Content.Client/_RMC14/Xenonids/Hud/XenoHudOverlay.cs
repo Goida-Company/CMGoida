@@ -6,10 +6,13 @@ using Content.Shared._RMC14.Shields;
 using Content.Shared._RMC14.Stealth;
 using Content.Shared._RMC14.Xenonids;
 using Content.Shared._RMC14.Xenonids.Energy;
+using Content.Shared._RMC14.Xenonids.Dancer;
+using Content.Shared._RMC14.Xenonids.Despoiler;
 using Content.Shared._RMC14.Xenonids.Maturing;
 using Content.Shared._RMC14.Xenonids.Parasite;
 using Content.Shared._RMC14.Xenonids.Plasma;
 using Content.Shared._RMC14.Xenonids.Projectile.Spit.Stacks;
+using Content.Shared._RMC14.Xenonids.Despoiler;
 using Content.Shared._RMC14.Xenonids.Rank;
 using Content.Shared.Damage;
 using Content.Shared.Ghost;
@@ -36,6 +39,8 @@ namespace Content.Client._RMC14.Xenonids.Hud;
 
 public sealed partial class XenoHudOverlay : Overlay
 {
+    private static readonly ProtoId<ShaderPrototype> UnshadedShader = "unshaded";
+
     [Dependency] private IEntityManager _entity = default!;
     [Dependency] private IOverlayManager _overlay = default!;
     [Dependency] private IPlayerManager _players = default!;
@@ -61,6 +66,7 @@ public sealed partial class XenoHudOverlay : Overlay
     private readonly EntityQuery<XenoShieldComponent> _xenoShieldQuery;
     private readonly EntityQuery<EntityActiveInvisibleComponent> _invisQuery;
     private readonly EntityQuery<XenoComponent> _xenoQuery;
+    private readonly EntityQuery<XenoDespoilerHypertensionComponent> _hyperQuery;
 
     private readonly ShaderInstance _shader;
 
@@ -69,8 +75,10 @@ public sealed partial class XenoHudOverlay : Overlay
         : OverlaySpace.WorldSpaceBelowFOV;
 
     private readonly ResPath _rsiPath = new("/Textures/_RMC14/Interface/xeno_hud.rsi");
+    private readonly ResPath _dancerMarksRsiPath = new("/Textures/_CM13/Interface/Hud/dancer_marks.rsi");
     private readonly ResPath _rsiPathSlow = new("/Textures/_RMC14/Effects/xeno_stomp.rsi");
     private readonly ResPath _rsiPathFreeze = new("/Textures/_RMC14/Effects/xeno_freeze.rsi");
+    private readonly ResPath _rsiPathHypertension = new("/Textures/_RMC14/Interface/Alerts/hypertension.rsi");
 
     public XenoHudOverlay()
     {
@@ -94,8 +102,9 @@ public sealed partial class XenoHudOverlay : Overlay
         _xenoShieldQuery = _entity.GetEntityQuery<XenoShieldComponent>();
         _invisQuery = _entity.GetEntityQuery<EntityActiveInvisibleComponent>();
         _xenoQuery = _entity.GetEntityQuery<XenoComponent>();
+        _hyperQuery = _entity.GetEntityQuery<XenoDespoilerHypertensionComponent>();
 
-        _shader = _prototype.Index<ShaderPrototype>("unshaded").Instance();
+        _shader = _prototype.Index(UnshadedShader).Instance();
         ZIndex = 1;
     }
 
@@ -133,6 +142,7 @@ public sealed partial class XenoHudOverlay : Overlay
 
             DrawAcidStacks(in args, scaleMatrix, rotationMatrix);
             DrawMarkedIcons(in args, scaleMatrix, rotationMatrix);
+            DrawYellowMarkedIcons(in args, scaleMatrix, rotationMatrix);
             DrawRank(in args, scaleMatrix, rotationMatrix);
 
             DrawSlow(in args, scaleMatrix, rotationMatrix);
@@ -161,7 +171,7 @@ public sealed partial class XenoHudOverlay : Overlay
             if (_container.IsEntityOrParentInContainer(uid, xform: xform))
                 continue;
 
-            var bounds = sprite.Bounds;
+            var bounds = _sprite.GetLocalBounds((uid, sprite));
             var worldPos = _transform.GetWorldPosition(xform, _xformQuery);
 
             if (!bounds.Translated(worldPos).Intersects(args.WorldAABB))
@@ -182,6 +192,7 @@ public sealed partial class XenoHudOverlay : Overlay
             UpdatePlasma((uid, xeno, sprite), handle);
             UpdateShields((uid, xeno, sprite), handle);
             UpdateEnergy((uid, xeno, sprite), handle);
+            UpdateHypertension((uid, xeno, sprite), handle);
         }
     }
 
@@ -207,7 +218,7 @@ public sealed partial class XenoHudOverlay : Overlay
             if (_invisQuery.HasComp(uid))
                 continue;
 
-            var bounds = sprite.Bounds;
+            var bounds = _sprite.GetLocalBounds((uid, sprite));
             var worldPos = _transform.GetWorldPosition(xform, _xformQuery);
 
             if (!bounds.Translated(worldPos).Intersects(args.WorldAABB))
@@ -244,7 +255,7 @@ public sealed partial class XenoHudOverlay : Overlay
             if (_invisQuery.HasComp(uid))
                 continue;
 
-            var bounds = sprite.Bounds;
+            var bounds = _sprite.GetLocalBounds((uid, sprite));
             var worldPos = _transform.GetWorldPosition(xform, _xformQuery);
 
             if (!bounds.Translated(worldPos).Intersects(args.WorldAABB))
@@ -273,7 +284,7 @@ public sealed partial class XenoHudOverlay : Overlay
         var ranks = _entity.EntityQueryEnumerator<XenoRankComponent, SpriteComponent, TransformComponent>();
         while (ranks.MoveNext(out var uid, out var comp, out var sprite, out var xform))
         {
-            if (comp.Rank < 2 || comp.Rank > 7 || _xenoMaturingQuery.HasComp(uid))
+            if (comp.Rank < 2 || _xenoMaturingQuery.HasComp(uid))
                 continue;
 
             if (xform.MapID != args.MapId)
@@ -285,7 +296,7 @@ public sealed partial class XenoHudOverlay : Overlay
             if (_invisQuery.HasComp(uid))
                 continue;
 
-            var bounds = sprite.Bounds;
+            var bounds = _sprite.GetLocalBounds((uid, sprite));
             var worldPos = _transform.GetWorldPosition(xform, _xformQuery);
 
             if (!bounds.Translated(worldPos).Intersects(args.WorldAABB))
@@ -296,11 +307,9 @@ public sealed partial class XenoHudOverlay : Overlay
             var matrix = Matrix3x2.Multiply(rotationMatrix, scaledWorld);
             handle.SetTransform(matrix);
 
-            // Highest playtime rank is still 6 in XenoRoleSystem, but the tier-7 RSI art is the intended top icon
-            // (matches RMCPlaytimeStatsWindow using hudxenoupgrade7-ui for Ruby+).
             var rankState = comp.Rank switch
             {
-                7 => "hudxenoupgrade8",
+                >= 7 => "hudxenoupgrade8",
                 6 => "hudxenoupgrade7",
                 _ => $"hudxenoupgrade{comp.Rank}"
             };
@@ -332,7 +341,7 @@ public sealed partial class XenoHudOverlay : Overlay
             if (_invisQuery.HasComp(uid))
                 continue;
 
-            var bounds = sprite.Bounds;
+            var bounds = _sprite.GetLocalBounds((uid, sprite));
             var worldPos = _transform.GetWorldPosition(xform, _xformQuery);
 
             if (!bounds.Translated(worldPos).Intersects(args.WorldAABB))
@@ -343,8 +352,47 @@ public sealed partial class XenoHudOverlay : Overlay
             var matrix = Matrix3x2.Multiply(rotationMatrix, scaledWorld);
             handle.SetTransform(matrix);
 
-            var icon = new Rsi(_rsiPath, $"prae_tag");
+            var icon = new Rsi(_dancerMarksRsiPath, "prae_tag");
             var texture = _sprite.GetFrame(icon, _timing.CurTime - comp.TimeAdded, false);
+
+            var yOffset = (bounds.Height + sprite.Offset.Y) / 2f - (float)texture.Height / EyeManager.PixelsPerMeter * bounds.Height;
+            var xOffset = (bounds.Width + sprite.Offset.X) / 2f - (float)texture.Width / EyeManager.PixelsPerMeter * bounds.Width;
+
+            var position = new Vector2(xOffset, yOffset);
+            handle.DrawTexture(texture, position);
+        }
+    }
+
+    private void DrawYellowMarkedIcons(in OverlayDrawArgs args, Matrix3x2 scaleMatrix, Matrix3x2 rotationMatrix)
+    {
+        var handle = args.WorldHandle;
+        var stacks = _entity
+            .AllEntityQueryEnumerator<XenoYellowMarkedComponent, SpriteComponent, TransformComponent>();
+
+        while (stacks.MoveNext(out var uid, out _, out var sprite, out var xform))
+        {
+            if (xform.MapID != args.MapId)
+                continue;
+
+            if (_container.IsEntityOrParentInContainer(uid, xform: xform))
+                continue;
+
+            if (_invisQuery.HasComp(uid))
+                continue;
+
+            var bounds = _sprite.GetLocalBounds((uid, sprite));
+            var worldPos = _transform.GetWorldPosition(xform, _xformQuery);
+
+            if (!bounds.Translated(worldPos).Intersects(args.WorldAABB))
+                continue;
+
+            var worldMatrix = Matrix3x2.CreateTranslation(worldPos);
+            var scaledWorld = Matrix3x2.Multiply(scaleMatrix, worldMatrix);
+            var matrix = Matrix3x2.Multiply(rotationMatrix, scaledWorld);
+            handle.SetTransform(matrix);
+
+            var icon = new Rsi(_dancerMarksRsiPath, "prae_tag_yellow");
+            var texture = _sprite.GetFrame(icon, _timing.CurTime, false);
 
             var yOffset = (bounds.Height + sprite.Offset.Y) / 2f - (float)texture.Height / EyeManager.PixelsPerMeter * bounds.Height;
             var xOffset = (bounds.Width + sprite.Offset.X) / 2f - (float)texture.Width / EyeManager.PixelsPerMeter * bounds.Width;
@@ -374,7 +422,7 @@ public sealed partial class XenoHudOverlay : Overlay
             if (_xenoQuery.HasComp(uid))
                 continue;
 
-            var bounds = sprite.Bounds;
+            var bounds = _sprite.GetLocalBounds((uid, sprite));
             var worldPos = _transform.GetWorldPosition(xform, _xformQuery);
 
             if (!bounds.Translated(worldPos).Intersects(args.WorldAABB))
@@ -416,7 +464,7 @@ public sealed partial class XenoHudOverlay : Overlay
             if (_xenoQuery.HasComp(uid))
                 continue;
 
-            var bounds = sprite.Bounds;
+            var bounds = _sprite.GetLocalBounds((uid, sprite));
             var worldPos = _transform.GetWorldPosition(xform, _xformQuery);
 
             if (!bounds.Translated(worldPos).Intersects(args.WorldAABB))
@@ -453,7 +501,7 @@ public sealed partial class XenoHudOverlay : Overlay
             if (_invisQuery.HasComp(uid))
                 continue;
 
-            var bounds = sprite.Bounds;
+            var bounds = _sprite.GetLocalBounds((uid, sprite));
             var worldPos = _transform.GetWorldPosition(xform, _xformQuery);
 
             if (!bounds.Translated(worldPos).Intersects(args.WorldAABB))
@@ -491,7 +539,7 @@ public sealed partial class XenoHudOverlay : Overlay
             if (_invisQuery.HasComp(uid))
                 continue;
 
-            var bounds = sprite.Bounds;
+            var bounds = _sprite.GetLocalBounds((uid, sprite));
             var worldPos = _transform.GetWorldPosition(xform, _xformQuery);
 
             if (!bounds.Translated(worldPos).Intersects(args.WorldAABB))
@@ -562,7 +610,7 @@ public sealed partial class XenoHudOverlay : Overlay
 
         var texture = _sprite.GetFrame(icon, _timing.CurTime);
 
-        var bounds = sprite.Bounds;
+        var bounds = _sprite.GetLocalBounds((uid, sprite));
         var yOffset = (bounds.Height + sprite.Offset.Y) / 2f - (float) texture.Height / EyeManager.PixelsPerMeter * bounds.Height + xeno.HudOffset.Y;
         var xOffset = (bounds.Width + sprite.Offset.X) / 2f - (float) texture.Width / EyeManager.PixelsPerMeter * bounds.Width + xeno.HudOffset.X;
 
@@ -587,12 +635,29 @@ public sealed partial class XenoHudOverlay : Overlay
         var icon = new Rsi(new ResPath("/Textures/_RMC14/Interface/xeno_hud.rsi"), state);
         var texture = _sprite.GetFrame(icon, _timing.CurTime);
 
-        var bounds = sprite.Bounds;
+        var bounds = _sprite.GetLocalBounds((uid, sprite));
         var yOffset = (bounds.Height + sprite.Offset.Y) / 2f - (float) texture.Height / EyeManager.PixelsPerMeter * bounds.Height + xeno.HudOffset.Y;
         var xOffset = (bounds.Width + sprite.Offset.X) / 2f - (float) texture.Width / EyeManager.PixelsPerMeter * bounds.Width + xeno.HudOffset.X;
 
         var position = new Vector2(xOffset, yOffset);
         handle.DrawTexture(texture, position);
+    }
+
+    private void UpdateHypertension(Entity<XenoComponent, SpriteComponent> ent, DrawingHandleWorld handle)
+    {
+        var (uid, xeno, sprite) = ent;
+        if (!_hyperQuery.TryComp(uid, out var hyper))
+            return;
+
+        var level = Math.Clamp(hyper.Stacks, 0, hyper.MaxStacks);
+        var icon = new Rsi(_rsiPathHypertension, $"level_{level}");
+        var texture = _sprite.GetFrame(icon, _timing.CurTime);
+
+        var bounds = _sprite.GetLocalBounds((uid, sprite));
+        var yOffset = (bounds.Height + sprite.Offset.Y) / 2f - (float) texture.Height / EyeManager.PixelsPerMeter * bounds.Height + xeno.HudOffset.Y;
+        var xOffset = (bounds.Width + sprite.Offset.X) / 2f - (float) texture.Width / EyeManager.PixelsPerMeter * bounds.Width + xeno.HudOffset.X + (float) texture.Width / EyeManager.PixelsPerMeter;
+
+        handle.DrawTexture(texture, new Vector2(xOffset, yOffset));
     }
 
     private void UpdateShields(Entity<XenoComponent, SpriteComponent> ent, DrawingHandleWorld handle)
@@ -625,7 +690,7 @@ public sealed partial class XenoHudOverlay : Overlay
         var icon = new Rsi(new ResPath("/Textures/_RMC14/Interface/xeno_hud.rsi"), state);
         var texture = _sprite.GetFrame(icon, _timing.CurTime);
 
-        var bounds = sprite.Bounds;
+        var bounds = _sprite.GetLocalBounds((uid, sprite));
         var yOffset = (bounds.Height + sprite.Offset.Y) / 2f - (float)texture.Height / EyeManager.PixelsPerMeter * bounds.Height + xeno.HudOffset.Y;
         var xOffset = (bounds.Width + sprite.Offset.X) / 2f - (float)texture.Width / EyeManager.PixelsPerMeter * bounds.Width + xeno.HudOffset.X;
 
@@ -646,14 +711,14 @@ public sealed partial class XenoHudOverlay : Overlay
 
     private void UpdatePurpleBar(Entity<XenoComponent, SpriteComponent> ent, DrawingHandleWorld handle, double energy, double max, int? generationCap)
     {
-        var (_, xeno, sprite) = ent;
+        var (uid, xeno, sprite) = ent;
         var level = ContentHelpers.RoundToLevels(energy, max, 11);
         var name = level > 0 ? $"{level * 10}" : "0";
         var state = $"xenoenergy{name}";
         var icon = new Rsi(new ResPath("/Textures/_RMC14/Interface/xeno_hud.rsi"), state);
         var texture = _sprite.GetFrame(icon, _timing.CurTime);
 
-        var bounds = sprite.Bounds;
+        var bounds = _sprite.GetLocalBounds((uid, sprite));
         var yOffset = (bounds.Height + sprite.Offset.Y) / 2f - (float) texture.Height / EyeManager.PixelsPerMeter * bounds.Height + xeno.HudOffset.Y;
         var xOffset = (bounds.Width + sprite.Offset.X) / 2f - (float) texture.Width / EyeManager.PixelsPerMeter * bounds.Width + xeno.HudOffset.X;
 

@@ -3,9 +3,9 @@
   id: AU14JobPARTSPartyEngineer
   name: Prodigy Sierra Combat Engineer
   description: au14-prodigyparty-description
-  playTimeTracker: AU14JobPARTSPartyEngineer
+  playTimeTracker: AU14JobPARTSPartyEngineerTracker
   ranks:
-    AU14RankWeYuOperator: []
+    AU14RankPrDOperator: []
   spawnMenuRoleName: Prodigy Sierra Combat Engineer (3rd party, M41A/2)
   startingGear: AU14GearPARTSPartyEngineer
   greeting: au14-prodigyparty-greeting
@@ -26,7 +26,6 @@
       icon:
         sprite: /Textures/_RMC14/Interface/map_blips.rsi
         state: synth
-  hidden: false
 
 - type: entity
   parent: AU14BaseMobSpeciesOrganicWeYu
@@ -56,8 +55,8 @@
     jumpsuit: AU14ProdigyFatiguesRU
     shoes: RMCBootsSPPBlackFilled
     mask: RMCMaskCoifPMC
-    eyes: RMCGlassesMedicalHUDGlasses
-    head: AU14ProdigyBallisticHelmet
+    eyes: AU14ProdigyWeldingGoggles
+    head: AU14ProdigyBallisticHelmetPART
     gloves: AU14HandsProdigyRU
     belt: AU14BeltUtilityCombatProdigyRUFilled
     pocket1: AU14PouchMagazineLargePARTDualFilled
@@ -85,16 +84,16 @@
     - AU14SynthResetKeyProdigy
     - AU14SynthResetKeyProdigy
     - AU14ProdigyLaptop
-    - CMMagazinePistolMK80
-    - CMMagazinePistolMK80
+    - RMCVisorMedical
+    - AU14MagazineRifleM20A
     # 0 empty slots
     outerClothing:
     - CMMagazinePistolMK80
-    - BarbedWire15
-    - BarbedWire15
     - AU14MagazineRifleM20A
     - AU14MagazineRifleM20A
+    - BarbedWire15
+    - BarbedWire15
     # 0 empty slots
 
 - type: playTimeTracker
-  id: AU14JobPARTSPartyEngineer
+  id: AU14JobPARTSPartyEngineerTracker

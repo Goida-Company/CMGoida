@@ -11,6 +11,7 @@ using Content.Server.GameTicking;
 using Content.Server.Shuttles.Components;
 using Content.Server.Shuttles.Events;
 using Content.Server.Shuttles.Systems;
+using Content.Shared._CMU14.ZLevels.Core.EntitySystems;
 using Content.Shared._RMC14.AlertLevel;
 using Content.Shared._RMC14.Areas;
 using Content.Shared._RMC14.Atmos;
@@ -28,8 +29,10 @@ using Content.Shared._RMC14.Telephone;
 using Content.Shared._RMC14.Xenonids;
 using Content.Shared._RMC14.Xenonids.Announce;
 using Content.Shared.Administration.Logs;
+using Content.Server.AU14.WithdrawConsole;
 using Content.Shared.AU14;
 using Content.Shared.AU14.Round;
+using Content.Shared.AU14.WithdrawConsole;
 using Content.Shared.CCVar;
 using Content.Shared.Coordinates;
 using Content.Shared.Database;
@@ -47,6 +50,8 @@ using Robust.Server.Containers;
 using Robust.Server.GameObjects;
 using Robust.Shared.Configuration;
 using Robust.Shared.Containers;
+using Robust.Shared.Map;
+using Robust.Shared.Map.Components;
 using Robust.Shared.Physics.Components;
 using Robust.Shared.Player;
 using Robust.Shared.Timing;
@@ -64,6 +69,7 @@ public sealed partial class DropshipSystem : SharedDropshipSystem
     [Dependency] private EntityLookupSystem _entityLookup = default!;
     [Dependency] private GameTicker _gameTicker = default!;
     [Dependency] private MarineAnnounceSystem _marineAnnounce = default!;
+    [Dependency] private SharedMapSystem _map = default!;
     [Dependency] private PhysicsSystem _physics = default!;
     [Dependency] private PointLightSystem _pointLight = default!;
     [Dependency] private SharedPopupSystem _popup = default!;
@@ -79,6 +85,8 @@ public sealed partial class DropshipSystem : SharedDropshipSystem
     [Dependency] private RMCAlertLevelSystem _alertLevelSystem = default!;
     [Dependency] private AreaSystem _area = default!;
     [Dependency] private IntelSystem _intel = default!;
+    [Dependency] private WithdrawConsoleSystem _withdrawConsole = default!;
+    [Dependency] private CMUSharedZLevelsSystem _zLevels = default!;
 
     private EntityQuery<DockingComponent> _dockingQuery;
     private EntityQuery<DoorComponent> _doorQuery;
@@ -123,7 +131,10 @@ public sealed partial class DropshipSystem : SharedDropshipSystem
                 subs.Event<DropshipLockdownMsg>(OnDropshipNavigationLockdownMsg);
                 subs.Event<DropshipRemoteControlToggleMsg>(OnDropshipRemoteControlToggleMsg);
                 subs.Event<DropshipLaunchAlarmToggleMsg>(OnDropshipLaunchAlarmToggleMsg);
+                subs.Event<DropshipWithdrawReturnMsg>(OnDropshipWithdrawReturn);
             });
+
+        SubscribeLocalEvent<WithdrawFactionHijackLockEvent>(OnWithdrawHijackLock);
 
         Subs.CVar(_config, RMCCVars.RMCLandingZonePrimaryAutoMinutes, v => _lzPrimaryAutoDelay = TimeSpan.FromMinutes(v), true);
         Subs.CVar(_config, RMCCVars.RMCDropshipFlyByTimeSeconds, v => _flyByTime = TimeSpan.FromSeconds(v), true);
@@ -511,6 +522,21 @@ public sealed partial class DropshipSystem : SharedDropshipSystem
             return false;
         }
 
+        // Block cycle-down at 5-minute withdraw mark: faction may not send dropships to planet
+        if (!hijack &&
+            TryComp(computer.Owner, out WhitelistedShuttleComponent? withdrawFactionComp) &&
+            !string.IsNullOrEmpty(withdrawFactionComp.Faction) &&
+            _withdrawConsole.IsDropdownBlocked(withdrawFactionComp.Faction))
+        {
+            var destMap = Transform(destination).MapUid;
+            if (destMap != null && (HasComp<RMCPlanetComponent>(destMap.Value) || HasComp<RMCPlanetComponent>(Transform(destination).GridUid)))
+            {
+                if (user != null)
+                    _popup.PopupEntity(Loc.GetString("withdraw-console-dropdown-blocked"), computer.Owner, user.Value, PopupType.MediumCaution);
+                return false;
+            }
+        }
+
         _hijack = hijack;
         var dropshipId = Transform(computer).GridUid;
         _dropshipId = dropshipId ?? EntityUid.Invalid;
@@ -829,7 +855,16 @@ public sealed partial class DropshipSystem : SharedDropshipSystem
             }
 
             var canTacticalLand = computer.Comp.CanTacticalLand || IsStrictThirdPartyFaction(whitelistedFaction);
-            var state = new DropshipNavigationDestinationsBuiState(flyBy, destinations, doorLockStatus, computer.Comp.RemoteControl, canTacticalLand, computer.Comp.LaunchAlarmStatus);
+
+            var canWithdrawReturn = false;
+            if (whitelistedFaction != null && _withdrawConsole.IsWithdrawReturnUnlocked(whitelistedFaction))
+            {
+                var gridXform = Transform(grid);
+                canWithdrawReturn = gridXform.MapUid != null &&
+                                    (HasComp<RMCPlanetComponent>(gridXform.MapUid.Value) || HasComp<RMCPlanetComponent>(grid));
+            }
+
+            var state = new DropshipNavigationDestinationsBuiState(flyBy, destinations, doorLockStatus, computer.Comp.RemoteControl, canTacticalLand, computer.Comp.LaunchAlarmStatus, canWithdrawReturn);
             _ui.SetUiState(computer.Owner, DropshipNavigationUiKey.Key, state);
             return;
         }
@@ -876,13 +911,32 @@ public sealed partial class DropshipSystem : SharedDropshipSystem
 
     private void ArmThirdPartyAutoReturn(EntityUid dropship, EntityUid destination)
     {
-        if (!TryComp(dropship, out ThirdPartyDropshipAutoReturnComponent? autoReturn))
+        if (!TryGetDropshipNavigationComputer(dropship, out var computer) ||
+            !TryComp(computer.Owner, out WhitelistedShuttleComponent? ws) ||
+            !ws.AutoReturn)
             return;
 
+        // Find the return destination entity registered for this dropship
+        EntityUid returnDest = EntityUid.Invalid;
+        var rdQuery = EntityQueryEnumerator<ThirdPartyDropshipReturnDestinationComponent>();
+        while (rdQuery.MoveNext(out var uid, out var rdComp))
+        {
+            if (rdComp.Shuttle == dropship)
+            {
+                returnDest = uid;
+                break;
+            }
+        }
+
+        if (!returnDest.Valid || TerminatingOrDeleted(returnDest))
+            return;
+
+        var autoReturn = EnsureComp<ThirdPartyDropshipAutoReturnComponent>(dropship);
+        autoReturn.ReturnDestination = returnDest;
         autoReturn.ReturnAt = null;
         autoReturn.NextWarningAt = TimeSpan.Zero;
 
-        if (destination == autoReturn.ReturnDestination ||
+        if (destination == returnDest ||
             HasComp<ThirdPartyDropshipReturnDestinationComponent>(destination) ||
             HasComp<ThirdPartyDropshipReturnedComponent>(dropship))
         {
@@ -1330,7 +1384,13 @@ public sealed partial class DropshipSystem : SharedDropshipSystem
                 Dirty(uid, dropship);
 
                 Audio.PlayGlobal(dropship.CrashSound, destinationFilter, true);
-                _rmcFlammable.SpawnFireDiamond(dropship.FireId, destinationEntityCoords, dropship.FireRange, 11);
+                _rmcFlammable.SpawnFireDiamond(
+                    dropship.FireId,
+                    destinationEntityCoords,
+                    dropship.FireRange,
+                    11,
+                    zProjectionMaxFloors: 0,
+                    canSpawn: coords => IsOutsideDropshipCrashFootprint(uid, coords));
                 _rmcExplosion.QueueExplosion(destinationCoords, "RMCOB", 50000, 1500, 90, uid);
 
                 continue;
@@ -1338,6 +1398,19 @@ public sealed partial class DropshipSystem : SharedDropshipSystem
         }
 
 
+    }
+
+    private bool IsOutsideDropshipCrashFootprint(EntityUid dropship, EntityCoordinates coordinates)
+    {
+        if (!TryComp(dropship, out MapGridComponent? dropshipGrid))
+            return true;
+
+        var mapCoordinates = _transform.ToMapCoordinates(coordinates);
+        if (_transform.GetMapId(dropship) != mapCoordinates.MapId)
+            return true;
+
+        var tile = _map.WorldToTile(dropship, dropshipGrid, mapCoordinates.Position);
+        return !_map.TryGetTile(dropshipGrid, tile, out var dropshipTile) || dropshipTile.IsEmpty;
     }
 
     /// <summary>
@@ -1350,14 +1423,14 @@ public sealed partial class DropshipSystem : SharedDropshipSystem
         var almayerQuery = EntityQueryEnumerator<AlmayerComponent, TransformComponent>();
         while (almayerQuery.MoveNext(out _, out _, out var xform))
         {
-            if (xform.MapUid == mapUid)
+            if (IsSameMapOrConnectedZLevel(mapUid, xform.MapUid))
                 return true;
         }
 
         var shipQuery = EntityQueryEnumerator<ShipFactionComponent, TransformComponent>();
         while (shipQuery.MoveNext(out _, out _, out var xform2))
         {
-            if (xform2.MapUid == mapUid)
+            if (IsSameMapOrConnectedZLevel(mapUid, xform2.MapUid))
                 return true;
         }
 
@@ -1413,17 +1486,71 @@ public sealed partial class DropshipSystem : SharedDropshipSystem
         var shipFactions = EntityQueryEnumerator<ShipFactionComponent, TransformComponent>();
         while (shipFactions.MoveNext(out _, out var shipFaction, out var sfXform))
         {
-            if (sfXform.MapUid == map && !string.IsNullOrEmpty(shipFaction.Faction))
+            if (IsSameMapOrConnectedZLevel(map, sfXform.MapUid) && !string.IsNullOrEmpty(shipFaction.Faction))
                 return shipFaction.Faction;
         }
 
         var controlComputers = EntityQueryEnumerator<MarineControlComputerComponent, TransformComponent>();
         while (controlComputers.MoveNext(out _, out var cc, out var ccXform))
         {
-            if (ccXform.MapUid == map && !string.IsNullOrEmpty(cc.Faction))
+            if (IsSameMapOrConnectedZLevel(map, ccXform.MapUid) && !string.IsNullOrEmpty(cc.Faction))
                 return cc.Faction;
         }
 
         return null;
     }
+
+    private bool IsSameMapOrConnectedZLevel(EntityUid mapUid, EntityUid? otherMapUid)
+    {
+        if (otherMapUid is not { } otherMap)
+            return false;
+
+        if (otherMap == mapUid)
+            return true;
+
+        return _zLevels.TryGetZNetwork(mapUid, out var network) &&
+               _zLevels.TryGetZNetwork(otherMap, out var otherNetwork) &&
+               otherNetwork.Value.Owner == network.Value.Owner;
+    }
+
+    private void OnWithdrawHijackLock(ref WithdrawFactionHijackLockEvent ev)
+    {
+        var query = EntityQueryEnumerator<DropshipNavigationComputerComponent, WhitelistedShuttleComponent>();
+        while (query.MoveNext(out var uid, out var nav, out var ws))
+        {
+            if (!string.Equals(ws.Faction, ev.Faction, StringComparison.OrdinalIgnoreCase))
+                continue;
+            nav.Hijackable = false;
+            Dirty(uid, nav);
+        }
+    }
+
+    private void OnDropshipWithdrawReturn(Entity<DropshipNavigationComputerComponent> ent, ref DropshipWithdrawReturnMsg args)
+    {
+        if (Transform(ent).GridUid is not { } grid)
+            return;
+
+        if (!TryComp(grid, out DropshipComponent? dropship) || dropship.Crashed)
+            return;
+
+        if (!TryComp(ent.Owner, out WhitelistedShuttleComponent? ws) || string.IsNullOrEmpty(ws.Faction))
+            return;
+
+        if (!_withdrawConsole.IsWithdrawReturnUnlocked(ws.Faction))
+            return;
+
+        var gridXform = Transform(grid);
+        var isOnPlanet = gridXform.MapUid != null &&
+                         (HasComp<RMCPlanetComponent>(gridXform.MapUid.Value) || HasComp<RMCPlanetComponent>(grid));
+        if (!isOnPlanet)
+            return;
+
+        dropship.WithdrawEvacuating = true;
+        Dirty(grid, dropship);
+
+        var shuttle = EnsureComp<ShuttleComponent>(grid);
+        _shuttle.FTLToCoordinates(grid, shuttle, grid.ToCoordinates(), Angle.Zero, hyperspaceTime: 1_000_000);
+        RefreshUI();
+    }
+
 }

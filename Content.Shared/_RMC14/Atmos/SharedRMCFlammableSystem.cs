@@ -1,4 +1,5 @@
 using System.Linq;
+using Content.Shared._CMU14.ZLevels.Core.EntitySystems;
 using Content.Shared._RMC14.Armor;
 using Content.Shared._RMC14.Chemistry;
 using Content.Shared._RMC14.Chemistry.Reagent;
@@ -59,6 +60,7 @@ public abstract partial class SharedRMCFlammableSystem : EntitySystem
     [Dependency] private SharedPhysicsSystem _physics = default!;
     [Dependency] private SharedPopupSystem _popup = default!;
     [Dependency] private IPrototypeManager _prototype = default!;
+    [Dependency] private RMCReagentSystem _reagent = default!;
     [Dependency] private RMCMapSystem _rmcMap = default!;
     [Dependency] private SharedRMCMeleeWeaponSystem _rmcMelee = default!;
     [Dependency] private SharedSolutionContainerSystem _solutionContainer = default!;
@@ -70,6 +72,7 @@ public abstract partial class SharedRMCFlammableSystem : EntitySystem
     [Dependency] private SharedRMCEmoteSystem _emote = default!;
     [Dependency] private InventorySystem _inventory = default!;
     [Dependency] private EntityLookupSystem _entityLookup = default!;
+    [Dependency] private CMUSharedZLevelsSystem _zLevels = default!;
 
     private static readonly ProtoId<AlertPrototype> FireAlert = "Fire";
     private static readonly ProtoId<ReagentPrototype> WaterReagent = "Water";
@@ -190,11 +193,19 @@ public abstract partial class SharedRMCFlammableSystem : EntitySystem
         if (time < patter.Last + patter.Cooldown)
             return;
 
+        args.Handled = true;
         patter.Last = time;
         Dirty(user, patter);
 
-        ent.Comp.Duration -= patter.RemoveDuration * ent.Comp.PatExtinguishMultiplier;
-        Dirty(ent);
+        ent.Comp.CurrentPats++;
+        if (ent.Comp.CurrentPats >= ent.Comp.PatsToExtinguish)
+        {
+            QueueDel(ent);
+        }
+        else
+        {
+            Dirty(ent);
+        }
 
         _rmcMelee.DoLunge(user, ent);
         _audio.PlayPredicted(patter.Sound, user, user, AudioParams.Default.WithVolume(-8).WithVariation(0.05f));
@@ -427,7 +438,16 @@ public abstract partial class SharedRMCFlammableSystem : EntitySystem
         _onCollide.SetChain((spawned, onCollide), chain);
     }
 
-    private void SpawnFires(EntProtoId spawn, EntityCoordinates coordinates, int range, EntityUid chain, int? intensity, int? duration, HashSet<EntityCoordinates>? spawned = null)
+    private void SpawnFires(
+        EntProtoId spawn,
+        EntityCoordinates coordinates,
+        int range,
+        EntityUid chain,
+        int? intensity,
+        int? duration,
+        int? zProjectionMaxFloors = null,
+        Func<EntityCoordinates, bool>? canSpawn = null,
+        HashSet<EntityCoordinates>? spawned = null)
     {
         if (_net.IsClient)
             return;
@@ -439,7 +459,7 @@ public abstract partial class SharedRMCFlammableSystem : EntitySystem
             if (!spawned.Add(target))
                 continue;
 
-            var nextRange = SpawnFire(target, spawn, chain, range, intensity, duration, out var cont);
+            var nextRange = SpawnFire(target, spawn, chain, range, intensity, duration, out var cont, zProjectionMaxFloors, canSpawn);
             if (nextRange == 0 || cont)
                 continue;
 
@@ -448,7 +468,7 @@ public abstract partial class SharedRMCFlammableSystem : EntitySystem
                 {
                     try
                     {
-                        SpawnFires(spawn, target, nextRange, chain, intensity, duration, spawned);
+                        SpawnFires(spawn, target, nextRange, chain, intensity, duration, zProjectionMaxFloors, canSpawn, spawned);
                     }
                     catch (Exception e)
                     {
@@ -458,12 +478,19 @@ public abstract partial class SharedRMCFlammableSystem : EntitySystem
         }
     }
 
-    public void SpawnFireDiamond(EntProtoId spawn, EntityCoordinates center, int range, int? intensity = null, int? duration = null)
+    public void SpawnFireDiamond(
+        EntProtoId spawn,
+        EntityCoordinates center,
+        int range,
+        int? intensity = null,
+        int? duration = null,
+        int? zProjectionMaxFloors = null,
+        Func<EntityCoordinates, bool>? canSpawn = null)
     {
         var chain = _onCollide.SpawnChain();
         // Ensure the center tile is ignited as part of the diamond.
-        SpawnFire(center, spawn, chain, range, intensity, duration, out _);
-        SpawnFires(spawn, center, range, chain, intensity, duration);
+        SpawnFire(center, spawn, chain, range, intensity, duration, out _, zProjectionMaxFloors, canSpawn);
+        SpawnFires(spawn, center, range, chain, intensity, duration, zProjectionMaxFloors, canSpawn);
     }
 
     public void SpawnFireLines(EntProtoId spawn, EntityCoordinates center, int cardinalRange, int ordinalRange, int? intensity = null, int? duration = null)
@@ -488,9 +515,31 @@ public abstract partial class SharedRMCFlammableSystem : EntitySystem
         }
     }
 
-    public int SpawnFire(EntityCoordinates target, EntProtoId spawn, EntityUid chain, int range, int? intensity, int? duration, out bool cont)
+    public int SpawnFire(
+        EntityCoordinates target,
+        EntProtoId spawn,
+        EntityUid chain,
+        int range,
+        int? intensity,
+        int? duration,
+        out bool cont,
+        int? zProjectionMaxFloors = null,
+        Func<EntityCoordinates, bool>? canSpawn = null)
     {
         cont = false;
+        var projected = zProjectionMaxFloors is { } maxFloors
+            ? _zLevels.TryProjectToGround(target, out target, maxFloors)
+            : _zLevels.TryProjectToGround(target, out target);
+
+        if (!projected)
+        {
+            cont = true;
+            return range;
+        }
+
+        if (canSpawn != null && !canSpawn(target))
+            return Math.Max(range - 1, 0);
+
         if (!_rmcMap.TryGetTileDef(target, out var tile) ||
             tile.ID == ContentTileDefinition.SpaceID)
         {
@@ -575,8 +624,11 @@ public abstract partial class SharedRMCFlammableSystem : EntitySystem
 
         foreach (var ignitionTarget in targets)
         {
-            if (CheckViableTile(ent, ignitionTarget))
-                SpawnFireChain(ent.Comp.Spawn, chain, ignitionTarget, intensity, duration);
+            if (!_zLevels.TryProjectToGround(ignitionTarget, out var projectedTarget))
+                continue;
+
+            if (CheckViableTile(ent, projectedTarget))
+                SpawnFireChain(ent.Comp.Spawn, chain, projectedTarget, intensity, duration);
         }
     }
 
@@ -671,7 +723,7 @@ public abstract partial class SharedRMCFlammableSystem : EntitySystem
         intensity = FixedPoint2.Zero;
         foreach (var solutionReagent in solution)
         {
-            if (!_prototype.TryIndexReagent(solutionReagent.Reagent.Prototype, out ReagentPrototype? reagent))
+            if (!_reagent.TryIndex(solutionReagent.Reagent.Prototype, out var reagent))
                 continue;
 
             intensity += reagent.IntensityMod * solutionReagent.Quantity;

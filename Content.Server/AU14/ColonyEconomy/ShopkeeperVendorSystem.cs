@@ -1,4 +1,5 @@
 using System.Linq;
+using Content.Shared.Access.Components;
 using Content.Server.Stack;
 using Content.Shared.Access.Systems;
 using Content.Shared.AU14.ColonyEconomy;
@@ -7,6 +8,7 @@ using Content.Shared.Interaction;
 using Content.Shared.Stacks;
 using Content.Shared.Tag;
 using Content.Shared.UserInterface;
+using Content.Shared.Whitelist;
 using Robust.Server.GameObjects;
 using Robust.Shared.Containers;
 using Robust.Shared.Player;
@@ -24,9 +26,13 @@ public sealed partial class AU14ShopkeeperVendorSystem : EntitySystem
     [Dependency] private SharedContainerSystem _containers = default!;
     [Dependency] private AccessReaderSystem _accessReader = default!;
     [Dependency] private SharedHandsSystem _hands = default!;
+    [Dependency] private SharedIdCardSystem _idCard = default!;
+    [Dependency] private SharedTransformSystem _transform = default!;
     [Dependency] private TagSystem _tag = default!;
+    [Dependency] private EntityWhitelistSystem _whitelist = default!;
 
     private static readonly ProtoId<TagPrototype> CurrencyTag = "Currency";
+    private readonly Dictionary<EntityUid, EntityUid> _pendingStockSellers = new();
 
     public override void Initialize()
     {
@@ -44,7 +50,7 @@ public sealed partial class AU14ShopkeeperVendorSystem : EntitySystem
     {
         _containers.EnsureContainer<Container>(uid, AU14ShopkeeperVendorComponent.StockContainerName);
     }
-    private void OnUiOpened(EntityUid uid, AU14ShopkeeperVendorComponent comp, BoundUIOpenedEvent args)
+    private void OnUiOpened(EntityUid uid, AU14ShopkeeperVendorComponent comp, BoundUIOpenedEvent _)
     {
         UpdateShopUi(uid, comp);
     }
@@ -61,13 +67,28 @@ public sealed partial class AU14ShopkeeperVendorSystem : EntitySystem
             return;
         if (!_accessReader.IsAllowed(args.User, uid))
             return;
+        if (comp.StockBlacklist != null && _whitelist.IsWhitelistFail(comp.StockBlacklist, args.Used))
+        {
+            args.Handled = true;
+            return;
+        }
         if (!_containers.TryGetContainer(uid, AU14ShopkeeperVendorComponent.StockContainerName, out var stockContainer))
             return;
         args.Handled = true;
+        if (_idCard.TryFindIdCard(args.User, out var sellerId))
+            _pendingStockSellers[args.Used] = sellerId.Owner;
+
         if (!_hands.TryDrop(args.User, args.Used, checkActionBlocker: false))
+        {
+            _pendingStockSellers.Remove(args.Used);
             return;
+        }
+
         if (!_containers.Insert(args.Used, stockContainer))
+        {
+            _pendingStockSellers.Remove(args.Used);
             _hands.TryPickupAnyHand(args.User, args.Used);
+        }
     }
     private void OnItemInserted(EntityUid uid, AU14ShopkeeperVendorComponent comp, EntInsertedIntoContainerMessage args)
     {
@@ -86,12 +107,14 @@ public sealed partial class AU14ShopkeeperVendorSystem : EntitySystem
             var meta = MetaData(args.Entity);
             var displayName = meta.EntityName;
             var protoId = meta.EntityPrototype?.ID;
+            _pendingStockSellers.Remove(args.Entity, out var sellerIdCard);
             comp.Listings.Add(new AU14ShopkeeperListing
             {
                 ItemNet = GetNetEntity(args.Entity),
                 DisplayName = displayName,
                 Price = 10,
                 ProtoId = protoId,
+                SellerIdCard = sellerIdCard.Valid ? sellerIdCard : null,
             });
             UpdateShopUi(uid, comp);
         }
@@ -102,7 +125,7 @@ public sealed partial class AU14ShopkeeperVendorSystem : EntitySystem
             return;
         var listing = comp.Listings[msg.Index];
         var tax = _adminConsole.GetSalesTax();
-        var effectivePrice = (int) Math.Ceiling(listing.Price * (1f + tax));
+        var effectivePrice = (int)Math.Ceiling(listing.Price * (1f + tax));
         if (comp.InsertedCash < effectivePrice)
             return;
         var itemEntity = GetEntity(listing.ItemNet);
@@ -117,10 +140,18 @@ public sealed partial class AU14ShopkeeperVendorSystem : EntitySystem
         var taxRevenue = effectivePrice - listing.Price;
         if (taxRevenue > 0)
             _colonyBudget.AddToBudget(taxRevenue);
+
+        if (listing.SellerIdCard is { } sellerIdCard &&
+            TryComp<IdCardComponent>(sellerIdCard, out var idCard))
+        {
+            idCard.AccountBalance += listing.Price;
+            Dirty(sellerIdCard, idCard);
+        }
+
         // Remove from stock container and place at vendor's location
         if (_containers.TryGetContainer(uid, AU14ShopkeeperVendorComponent.StockContainerName, out var container))
             _containers.Remove(itemEntity, container);
-        Transform(itemEntity).Coordinates = Transform(uid).Coordinates;
+        _transform.SetCoordinates(itemEntity, Transform(itemEntity), Transform(uid).Coordinates);
         comp.Listings.RemoveAt(msg.Index);
         UpdateShopUi(uid, comp);
     }
@@ -128,7 +159,7 @@ public sealed partial class AU14ShopkeeperVendorSystem : EntitySystem
     {
         if (comp.InsertedCash <= 0)
             return;
-        _stack.SpawnMultiple("RMCSpaceCash", (int) comp.InsertedCash, uid);
+        _stack.SpawnMultiple("RMCSpaceCash", (int)comp.InsertedCash, uid);
         comp.InsertedCash = 0;
         UpdateShopUi(uid, comp);
     }
@@ -156,7 +187,7 @@ public sealed partial class AU14ShopkeeperVendorSystem : EntitySystem
         {
             if (_containers.TryGetContainer(uid, AU14ShopkeeperVendorComponent.StockContainerName, out var container))
                 _containers.Remove(itemEntity, container);
-            Transform(itemEntity).Coordinates = Transform(uid).Coordinates;
+            _transform.SetCoordinates(itemEntity, Transform(itemEntity), Transform(uid).Coordinates);
         }
         comp.Listings.RemoveAt(msg.Index);
         UpdateShopUi(uid, comp);
@@ -182,7 +213,7 @@ public sealed partial class AU14ShopkeeperVendorSystem : EntitySystem
         {
             var (protoId, displayName, price) = kvp.Key;
             var (firstIndex, count, proto) = kvp.Value;
-            var effectivePrice = (int) Math.Ceiling(price * (1f + tax));
+            var effectivePrice = (int)Math.Ceiling(price * (1f + tax));
             return new AU14ShopkeeperListingState(firstIndex, displayName, effectivePrice, price, count, proto);
         }).ToList();
 

@@ -24,7 +24,7 @@
     components:
     - type: NpcFactionMember
       factions:
-      - AUBureau
+      - NSPA
     - type: Skills
       skills:
         RMCSkillEndurance: 2
@@ -75,7 +75,8 @@
     pocket2: RMCPouchGeneralLargeICBLiaison
     suitStorage: RMCFlashlight
   inhand:
-  - CMClipboard
+    - CMClipboard
+    - AU14StampInterstellarLiaison
 
 - type: playTimeTracker
   id: AU14JobInvestigationICCLiaison

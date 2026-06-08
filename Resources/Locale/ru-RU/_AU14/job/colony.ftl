@@ -69,16 +69,16 @@ au14-job-prefix-corporateliaison = СВЗ
 AU14JobCivilianCorporateLiaison = Связной
 au14-job-name-civilianphysician = Врач
 au14-job-description-civilianphysician = Проводи диагностику, хирургические операции и лечение персонала колонии.
-au14-job-prefix-physician = ВРЧ
+au14-job-prefix-physician = ВРАЧ
 AU14JobCivilianPhysician = Врач
 au14-job-name-civilianheadphysician = Главный врач
 au14-job-description-civilianheadphysician = Руководи медицинским отделом, контролируй стандарты лечения и координируй экстренное медицинское реагирование.
 au14-job-prefix-headphysician = ГВ
 AU14JobCivilianHeadPhysician = Главный врач
-au14-job-name-civiliannurse = Медсестра
-au14-job-description-civiliannurse = Поддерживай врача в уходе за пациентами и медицинской логистике.
-au14-job-prefix-nurse = МЕДС
-AU14JobCivilianNurse = Медсестра
+au14-job-name-civiliannurse = Санитар
+au14-job-description-civiliannurse = Помогай врачу ухаживать за пациентами и выполняй работу "принеси-подай".
+au14-job-prefix-nurse = САН
+AU14JobCivilianNurse = Санитар
 au14-job-name-ethicsandwellnessadvisor = Консультант по этике и благополучию
 au14-job-description-ethicsandwellnessadvisor = Предлагай консультации, моральную поддержку и духовное руководство.
 au14-job-prefix-ethicsandwellnessadvisor = КЭБ
@@ -162,18 +162,23 @@ au14-job-prefix-civiliancorporateassistant = Корп. Пом.
 au14-job-name-civilianlaselleliaison = Связной Laselle
 au14-job-description-civilianlaselleliaison = Связной корпорации Laselle Bionational.
 au14-job-prefix-laselleliaison = СВЗЛ
-au14-job-name-civilianambassadoricsc = Посол МКТК
-au14-job-description-civilianambassadoricsc = Руководи дипломатической миссией МКТК в колонии.
-au14-job-prefix-civilianambassadoricsc = Пос. МКТК
+
+au14-job-name-civilianambassadoricsc = Посол НКВС
+au14-job-description-civilianambassadoricsc = Руководи дипломатической миссией НКВС в колонии.
+au14-job-prefix-civilianambassadoricsc = Пос. НКВС
+
 au14-job-name-civilianambassadorupp = Посол СПН
 au14-job-description-civilianambassadorupp = Руководи дипломатической миссией СПН в колонии.
 au14-job-prefix-civilianambassadorupp = Пос. СПН
+
 au14-job-name-civilianambassadorua = Посол США
 au14-job-description-civilianambassadorua = Руководи дипломатической миссией США в колонии.
 au14-job-prefix-civilianambassadorua = Пос. США
+
 au14-job-name-civilianambassadortwe = Посол ИТМ
 au14-job-description-civilianambassadortwe = Руководи дипломатической миссией ИТМ в колонии.
 au14-job-prefix-civilianambassadortwe = Пос. ИТМ
+
 au14-job-name-civilianambassadorcca = Посол КЦА
 au14-job-description-civilianambassadorcca = Руководи дипломатической миссией КЦА в колонии.
 au14-job-prefix-civilianambassadorcca = Пос. КЦА
@@ -199,13 +204,20 @@ au14-job-description-investigationrightsobserver = Благодаря упорн
 au14-job-prefix-civilianrightsobserver = ИХРО
 
 au14-job-name-civiliannspainspector = Инспектор НСПА
-
 au14-job-description-civiliannspainspector = Вы инспектор полицейского управления сектора Нероидов. Обеспечьте в колонии верховенство закона и выполняйте аресты и ордера. (Роль доступна на Гибрисе и Порт-Нероиде)
-
 au14-job-prefix-civiliannspainspector = НСПЕЙНС
 
 au14-job-name-civilianiccliaison = Представитель Комиссии по межзвездной торговле
-
 au14-job-description-civilianiccliaison = Вы — представитель по корпоративным связям Комиссии по межзвездной торговле, опытный агент ICC, прикрепленный к команде NSPA. Вы работаете с NSPA специально для того, чтобы соблюдать надлежащую торговую практику и расследовать любые возможности контрабанды или деятельности на черном рынке.
-
 au14-job-prefix-civilianiccliaison = ИККЛ
+
+au14-job-name-orbitalarbiter = Орбитальный арбитр
+au14-job-description-orbitalarbiter = Отстаивай справедливость. Толкуй закон, выноси вердикты и председательствуй на судебных процессах.
+au14-job-prefix-orbitalarbiter = Орб. Арб.
+
+au14-job-name-orbitallawyer = Орбитальный консул
+au14-job-description-orbitallawyer = Защищай невиновных (и виновных), обвиняй или просто спорь, пока тебе не заплатят.
+au14-job-prefix-orbitallawyer = Орб. Кон.
+
+au14-department-orbitalstation = Орбитальная станция
+au14-department-orbitalstation-description = Управляет орбитальной станцией: торговля и утилизация, обработка грузов и стыковка, соблюдение регламентов и отправление правосудия.

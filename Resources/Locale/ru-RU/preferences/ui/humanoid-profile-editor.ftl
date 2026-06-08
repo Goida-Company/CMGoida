@@ -22,6 +22,7 @@ humanoid-profile-editor-export-image-button = Экспорт изображен�
 humanoid-profile-editor-open-image-button = Открыть изображения
 humanoid-profile-editor-save-button = Сохранить
 humanoid-profile-editor-reset-button = Сброс
+humanoid-profile-editor-job-fallback-label = Запасная должность
 humanoid-profile-editor-spawn-priority-label = Приоритет появления:
 humanoid-profile-editor-preferred-squad-label = Предпочитаемый отряд:
 humanoid-profile-editor-preferred-armor-label = Предпочитаемая броня:
@@ -34,8 +35,16 @@ humanoid-profile-editor-enable = Включить
 humanoid-profile-editor-eyes-label = Цвет глаз:
 
 humanoid-profile-editor-military-jobs-tab = Военные должности
-humanoid-profile-editor-threat-jobs-tab = Угрозы / Третьи стороны
+humanoid-profile-editor-threat-jobs-tab = Угрозы
 humanoid-profile-editor-civilian-jobs-tab = Гражданские должности
+humanoid-profile-editor-government-jobs-tab = Должности правительства
+humanoid-profile-editor-insurgency-jobs-tab = Должности повстанцев
+humanoid-profile-editor-threat-roles-tab = Угрозы
+humanoid-profile-editor-threats-label = Угрозы
+
+humanoid-profile-editor-insurgency-tab = Восстание
+humanoid-profile-editor-colony-fall-tab = Падение колонии
+humanoid-profile-editor-distress-signal-tab = Сигнал бедствия
 
 humanoid-profile-editor-allegiance-label = Принадлежность:
 humanoid-profile-editor-allegiance-none = Нет
@@ -90,3 +99,34 @@ humanoid-profile-editor-preference-armor-ridged = Ребристая
 humanoid-profile-editor-preference-armor-carrier = Разгрузочная
 humanoid-profile-editor-preference-armor-skull = С черепом
 humanoid-profile-editor-preference-armor-smooth = Гладкая
+
+humanoid-profile-editor-job-fallback-label = Запасная должность
+
+
+humanoid-profile-editor-government-forces-label = Силы правительства / { $segmentTitle }
+
+humanoid-profile-editor-segment-command = Командование
+humanoid-profile-editor-segment-flight = Авиация
+humanoid-profile-editor-segment-support = Поддержка
+humanoid-profile-editor-segment-line = Линейная пехота
+
+humanoid-profile-editor-threat-marker-suffix =  (Маркер)
+humanoid-profile-editor-threat-xeno = Ксеноморфы
+humanoid-profile-editor-threat-ape = Обезьяны
+humanoid-profile-editor-threat-cultist = Культисты
+humanoid-profile-editor-threat-wendigo = Вендиго
+humanoid-profile-editor-threat-abomination = Мерзости
+humanoid-profile-editor-threat-tribal = Дикари
+# Missing entries synced from en-US
+
+humanoid-profile-editor-insurgency-tab = Восстание
+
+humanoid-profile-editor-colony-fall-tab = Падение колонии
+
+humanoid-profile-editor-distress-signal-tab = Сигнал бедствия
+
+humanoid-profile-editor-government-jobs-tab = Правительственные должности
+
+humanoid-profile-editor-insurgency-jobs-tab = Должности мятежников
+
+humanoid-profile-editor-threat-roles-tab = Угрозы

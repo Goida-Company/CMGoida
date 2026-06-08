@@ -4,7 +4,7 @@ using Robust.Shared.Prototypes;
 
 namespace Content.Shared._RMC14.Actions;
 
-[RegisterComponent, NetworkedComponent, AutoGenerateComponentState]
+[RegisterComponent, NetworkedComponent, AutoGenerateComponentState(true)]
 [Access(typeof(SharedRMCActionsSystem))]
 public sealed partial class RMCActionOrderComponent : Component
 {
@@ -13,4 +13,10 @@ public sealed partial class RMCActionOrderComponent : Component
 
     [DataField, AutoNetworkedField]
     public ImmutableArray<EntProtoId>? Order;
+
+    [DataField, AutoNetworkedField]
+    public ImmutableArray<EntProtoId>? HiddenActions;
+
+    [DataField, AutoNetworkedField]
+    public bool HiddenActionsKnown;
 }

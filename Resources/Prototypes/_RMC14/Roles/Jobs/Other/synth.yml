@@ -15,6 +15,7 @@
   icon: "RMCJobIconSynth"
   joinNotifyCrew: true
   whitelisted: true
+  whitelistParent: RMCWhitelistMedium
   supervisors: rmc-job-supervisors-commander
   accessGroups:
   - ShipMasterAccess
@@ -107,7 +108,7 @@
     onlyHalf: true
     alert: SynthNightVision
   - type: EyeProtection
-  - type: FlashImmunity
+# - type: FlashImmunity # "it provides protection from bright flashes" shift+click description
   - type: Insulated
   - type: RMCLeapProtection
     inherentStunDuration: 3
