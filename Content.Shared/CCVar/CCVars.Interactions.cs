@@ -1,4 +1,4 @@
-﻿using Robust.Shared.Configuration;
+using Robust.Shared.Configuration;
 
 namespace Content.Shared.CCVar;
 
@@ -64,6 +64,12 @@ public sealed partial class CCVars
     /// </summary>
     public static readonly CVarDef<int> StorageLimit =
         CVarDef.Create("control.storage_limit", 1, CVar.REPLICATED | CVar.SERVER);
+
+    /// <summary>
+    ///     If enabled, ranged weapons that have click-to-attack patterns (burst and semi-auto guns) will continue attacking if the button is held.
+    /// </summary>
+    public static readonly CVarDef<bool> ControlHoldToAttackRanged =
+        CVarDef.Create("control.hold_to_attack_ranged", false, CVar.CLIENTONLY | CVar.ARCHIVE);
 
     /// <summary>
     /// Whether or not storage can be opened recursively.

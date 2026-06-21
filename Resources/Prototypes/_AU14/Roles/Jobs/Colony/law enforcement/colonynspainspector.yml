@@ -6,7 +6,11 @@
   setPreference: false
   canBeAntag: false
   ranks:
-    RMCRankTSEPAInspector: []
+    RMCRankCivilian: []
+  chevrons:
+    Inspector:
+      entity: AU14ChevronNSPAInspector
+      requirements: []
   startingGear: AU14GearCivilianNSPAInspector
   icon: "RMCJobIconTSEPAInspector"
   requireAdminNotify: true
@@ -44,9 +48,8 @@
       prefix: au14-job-prefix-civiliannspainspector
     - type: TacticalMapIcon
       icon:
-        sprite: /Textures/_RMC14/Interface/map_blips.rsi
-        state: synth
-  hidden: false
+        sprite: /Textures/_RMC14/Interface/cm_job_icons.rsi
+        state: tse_painspector
 
 - type: startingGear
   id: AU14GearCivilianNSPAInspector

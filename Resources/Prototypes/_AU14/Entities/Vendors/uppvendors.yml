@@ -20,8 +20,6 @@
       entries:
       - id: AU14FatiguesUPP
         amount: 40
-      - id: AU14JumpsuitMPUPP
-        amount: 5
     - name: Footwear
       entries:
       - id: RMCBootsSPPBlack
@@ -58,13 +56,8 @@
         amount: 15
       - id: AU14UPPUshanka
         amount: 40
-    - name: Headsets
-      entries:
       - id: RMCM5CameraGear
         amount: 30
-      - id: AU14HeadsetGovforMarine
-        name: empty headset
-        amount: 20
     - name: Heads Up Display
       entries:
       - id: RMCVisorSquad
@@ -97,11 +90,11 @@
         amount: 40
     - name: Backpack
       entries:
-      - id: RMCSatchelSPP
+      - id: RuMCBackpackLightSPN
         amount: 80
-      - id: CMBackpackMarine
+      - id: RuMCUPPNavalInfantryBackpack1
         amount: 30
-      - id: AU14IMPBackpackMarine
+      - id: RuMCUPPNavalInfantryBackpackBig
         amount: 20
       - id: RMCSatchelSPPWelder
         amount: 5
@@ -113,7 +106,7 @@
       entries:
       - id: AU14BeltMarineUPP
         amount: 40
-      - id: RMCBeltGrenade
+      - id: RuMCUPPNavalInfantryBeltGrenade
         amount: 4
       - id: AU14ShotgunShellLoadingRigUPP
         amount: 6
@@ -708,12 +701,6 @@
         amount: 5
       - id: CMHeadCapSPPUshankaCivilian
         amount: 10
-    - name: Headsets
-      entries:
-      - id: AU14HeadsetGovforCommand
-        amount: 2
-      - id: AU14HeadsetGovforAuxiliary
-        amount: 2
     - name: Backpack
       entries:
       - id: RMCBackpackRTOSPP
@@ -744,6 +731,12 @@
         amount: 1
       - id: RMCPackFlareCAS
         amount: 6
+    - name: Chevrons
+      entries:
+      - id: AU14ChevronUPPNIPrivate
+        amount: 2
+      - id: AU14PortableVendorUPPNIRanks
+        amount: 1
 
 - type: entity
   parent: ColMarTechBase
@@ -802,6 +795,10 @@
       choices: { CMHat: 1 }
       entries:
       - id: CMHeadCapSPPBeret
+    - name: Headgear
+      choices: { CMHelmet: 1 }
+      entries:
+      - id: RuMCUPPNavalInfantryHeavyHelmet
     - name: Equipment
       takeAll: CMStandard
       entries:
@@ -853,9 +850,9 @@
       - id: RMCAttachmentRailFlashlight
 
 - type: entity
-  parent: ColMarTechBase
+  parent: AU14SpecVend
   id: AU14UPPSpecialWeaponsVendor
-  name: UPP special weapons rack
+  name: UPP weapons specialist rack
   description: >-
     An automated special weapons rack, hooked up to a restricted armory of Union of Progressive Peoples heavy and breaching ordnance.
     Standard issue only for qualified operators.
@@ -863,64 +860,32 @@
 
     Special weapons protocol: one weapon system of choice with a full ammunition loadout and explosives.
   components:
-  - type: AccessReader
-    access: [ [ "AU14AccessGovforSquad" ], [ "AU14AccessOpforSquad" ] ]
-  - type: Sprite
-    sprite: _AU14/Structures/Vendors/genericweaponrack.rsi
   - type: CMAutomatedVendor
     sections:
-    - name: Type 23 Riot Shotgun Pointman kit
+    - name: Weapons Specialist Sets
+      takeOne: SquadSpecKit
+      sharedSpecLimit: 1
       entries:
       - id: AU14KitUPPPointmanType23
-        amount: 1
         giveSquadRoleName: au14-job-name-govforspecialist-pointmanUPP
         givePrefix: au14-job-prefix-govforspecialist-pointmanUPP
+        isAppendSquadRoleName: false
         isAppendPrefix: true
-        isAppendSquadRoleName: true
-      - id: RMCBoxShotgunHeavyBuckshot
-        amount: 4
-      - id: RMCBoxShotgunHeavySlugs
-        amount: 7
-      - id: RMCBoxShotgunHeavyFlechette
-        amount: 1
-    - name: Heavy Antitank HJRA-12 Rifleman kit
-      entries:
       - id: AU14KitUPPHATHJRA12
-        amount: 1
         giveSquadRoleName: au14-job-name-govforspecialist-heavyantitankUPP
         givePrefix: au14-job-prefix-govforspecialist-heavyantitankUPP
+        isAppendSquadRoleName: false
         isAppendPrefix: true
-        isAppendSquadRoleName: true
-      - id: RMCRocketHJRA12AT
-        amount: 16
-      - id: RMCRocketHJRA12HE
-        amount: 7
-      - id: RMCRocketHJRA12Incen
-        amount: 3
-      - id: AU14BackpackRockets
-        amount: 2
-    - name: LPO80 Pyrotechnician kit
-      entries:
-      - id: AU14KitUPPPyroLPO80
-        amount: 1
-        giveSquadRoleName: au14-job-name-specialist-pyro
-        givePrefix: au14-job-prefix-specialist-pyro
-        isAppendPrefix: true
-        isAppendSquadRoleName: true
-      - id: RMCAttachmentUnderbarrelExtinguisherSpec
-        amount: 1
-      - id: RMCPouchFuelTankFilledExtinguisher
-        amount: 1
-    - name: Type 88 Marksman kit
-      entries:
       - id: AU14KitUPPMarksmanType88
-        amount: 1
         giveSquadRoleName: au14-job-name-govforspecialist-marksmanUPP
         givePrefix: au14-job-prefix-govforspecialist-marksmanUPP
+        isAppendSquadRoleName: false
         isAppendPrefix: true
-        isAppendSquadRoleName: true
-      - id: RMCMagazineSniperType88
-        amount: 10
+      - id: AU14KitUPPPyroLPO80
+        giveSquadRoleName: au14-job-name-specialist-pyro
+        givePrefix: au14-job-prefix-specialist-pyro
+        isAppendSquadRoleName: false
+        isAppendPrefix: true
 
 # AirCrew Weapons
 - type: entity
@@ -1091,6 +1056,17 @@
       - id: AU14PouchIFAKFill
       - id: RMCPouchMagazinePistol
       - id: RMCPouchPistol
+    - name: Record Keeping
+      takeAll: CMRecordKeeping
+      entries:
+      - id: RMCBoxRegulationTapesFull
+      - id: RMCUniversalRecorder
+      - id: CMHandLabeler
+      - id: RMCDigitalClock
+    - name: Inmate Restraining Gear
+      entries:
+      - id: AU14ClothingOuterStraitjacket
+        amount: 5 # TODO: bandaid - remove after mappers have placed this
 
 - type: entity
   parent: ColMarTechCargo
@@ -1194,6 +1170,8 @@
         amount: 3
       - id: RMCBoxClaymoreMineFilled
         amount: 3
+      - id: AU14BoxClaymoreMineIncendiaryFilled
+        amount: 1
       - id: RMCExplosiveBreachingCharge
         amount: 6
       - id: RMCExplosivePlastic
@@ -1239,6 +1217,10 @@
       - id: RMCFulton20
         amount: 4
       - id: RMCSentryLaptop
+        amount: 4
+    - name: Headgear
+      entries:
+      - id: RuMCUPPNavalInfantryHeavyHelmet
         amount: 4
     - name: RTO Packs
       entries:

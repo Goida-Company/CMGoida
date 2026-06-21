@@ -113,6 +113,9 @@
     soundHit:
       path: /Audio/Effects/lightburn.ogg
   - type: CMCautery
+  - type: Tag
+    tags:
+    - CMCautery
   - type: PhysicalComposition
     materialComposition:
       CMSteel: 5000
@@ -190,8 +193,6 @@
   - type: Item
     size: Tiny
     sprite: _RMC14/Objects/Medical/Surgery/scalpel.rsi
-  - type: Sharp
-    butcherDelayModifier: 1.5
   - type: Utensil
     types:
     - Knife
@@ -250,6 +251,7 @@
   - type: Tag
     tags:
     - CMCautery
+    - RMCScalpel
   - type: UseDelay
   - type: ItemToggleMeleeWeapon
     activatedDamage:

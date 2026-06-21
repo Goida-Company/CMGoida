@@ -100,11 +100,37 @@
     giveMapBlip:
       sprite: /Textures/_RMC14/Interface/map_blips.rsi
       state: spotter
-    jobWhitelists:
-    - popup: rmc-pamphlets-rifleman-warning
-      jobProto: CMRifleman
-    - popup: rmc-pamphlets-rifleman-warning
-      jobProto: CMPVERifleman
+    # jobWhitelists:
+    # - popup: rmc-pamphlets-rifleman-warning
+    #   jobProto: CMRifleman
+    # - popup: rmc-pamphlets-rifleman-warning
+    #   jobProto: CMPVERifleman
+
+- type: entity
+  parent: CMPamphlet
+  id: RMCPamphletVulture
+  name: M707 instructional pamphlet
+  description: A pamphlet used to quickly impart vital knowledge. This one has the image of the M707 "Vulture" on it.
+  components:
+  - type: Sprite
+    state: pamphlet_vulture
+  - type: SkillPamphlet
+    addComps:
+    - type: VultureWhitelist
+    bypassLimit: true
+
+- type: entity
+  parent: CMPamphlet
+  id: RMCPamphletSharp
+  name: SHARP operator instructional pamphlet
+  description: A pamphlet used to quickly impart vital knowledge. This one contains P9 SHARP operator notes.
+  components:
+  - type: Sprite
+    state: pamphlet_written
+  - type: SkillPamphlet
+    addComps:
+    - type: SharpSpecWhitelist
+    bypassLimit: true
 
 # gives powerloader skill / bypasses limit
 - type: entity
@@ -187,11 +213,11 @@
       sprite: /Textures/_RMC14/Interface/map_blips.rsi
       state: loader
     bypassLimit: true
-    jobWhitelists:
-    - popup: rmc-pamphlets-rifleman-warning
-      jobProto: CMRifleman
-    - popup: rmc-pamphlets-rifleman-warning
-      jobProto: CMPVERifleman
+    # jobWhitelists:
+    # - popup: rmc-pamphlets-rifleman-warning
+    #   jobProto: CMRifleman
+    # - popup: rmc-pamphlets-rifleman-warning
+    #   jobProto: CMPVERifleman
 
 - type: entity
   parent: CMPamphlet
@@ -218,11 +244,11 @@
       sprite: /Textures/_RMC14/Interface/map_blips.rsi
       state: mortar
     bypassLimit: true
-    jobWhitelists:
-    - popup: rmc-pamphlets-rifleman-warning
-      jobProto: CMRifleman
-    - popup: rmc-pamphlets-rifleman-warning
-      jobProto: CMPVERifleman
+    # jobWhitelists:
+    # - popup: rmc-pamphlets-rifleman-warning
+    #   jobProto: CMRifleman
+    # - popup: rmc-pamphlets-rifleman-warning
+    #   jobProto: CMPVERifleman
 
 - type: entity
   parent: CMPamphlet
@@ -260,9 +286,9 @@
       sprite: /Textures/_RMC14/Interface/map_blips.rsi
       state: honorguard
     bypassLimit: true
-    jobWhitelists:
-    - popup: rmc-pamphlets-mp-warning
-      jobProto: CMMilitaryPolice
+    # jobWhitelists:
+    # - popup: rmc-pamphlets-mp-warning
+    #   jobProto: CMMilitaryPolice
 
 # LANGUAGE / bypasses limit
 

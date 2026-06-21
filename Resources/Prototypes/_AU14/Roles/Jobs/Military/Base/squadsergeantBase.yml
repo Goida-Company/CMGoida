@@ -4,7 +4,7 @@
   id: AU14JobSquadSergeantBaseAbstract # Squad Leader Abstraction
   name: au14-job-name-govforsquadsergeant
   description: au14-job-description-govforsquadsergeant
-  icon: "AU14JobIconSarge"
+  icon: "AU14JobIconSquadSgt"
   #icon: "AU14JobIconPlatoonSarge" # unused
   # spawnMenuRoleName: Squad Sergeant (GOVFOR) // RuMC edit
   supervisors: au14-job-supervisors-govfor
@@ -31,11 +31,17 @@
     - NonResuscitable
     - Epilepsy
   ranks:
+    RMCRankCivilian: []
+  chevrons:
     RMCRankStaffSergeant:
-    - !type:RoleTimeRequirement
-      role: AU14JobGOVFORSquadSergeant
-      time: 36000 # 10 hours
-    RMCRankSergeant: []
+      entity: AU14ChevronUSCMStaffSergeant
+      requirements:
+      - !type:RoleTimeRequirement
+        role: AU14JobGOVFORSquadSergeant
+        time: 36000 # 10 hours
+    RMCRankSergeant:
+      entity: AU14ChevronUSCMSergeant
+      requirements: []
   special:
   - !type:AddComponentSpecial
     components:
@@ -47,7 +53,7 @@
       prefix: au14-job-prefix-govforsquadsergeant
     - type: TacticalMapIcon
       icon:
-        sprite: /Textures/_AU14/Interface/au14govforhud.rsi
+        sprite: /Textures/_AU14/Interface/au14govforjobicons.rsi
         state: govfor_sergeant
 
 - type: playTimeTracker

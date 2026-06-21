@@ -56,13 +56,8 @@
         amount: 25
       - id: AU14HeadCommandoBeanie
         amount: 10
-    - name: Headsets
-      entries:
       - id: RMCM5CameraGear
         amount: 30
-      - id: AU14HeadsetGovforMarine
-        name: empty headset
-        amount: 20
     - name: Heads Up Display
       entries:
       - id: RMCVisorSquad
@@ -596,12 +591,6 @@
         amount: 5
       - id: RMCArmorM4RMarshallMedium
         amount: 5
-    - name: Headsets
-      entries:
-      - id: AU14HeadsetGovforCommand
-        amount: 2
-      - id: AU14HeadsetGovforAuxiliary
-        amount: 2
     - name: Backpack
       entries:
       - id: RMCBackpackRTO
@@ -632,6 +621,10 @@
         amount: 1
       - id: RMCPackFlareCAS
         amount: 6
+    - name: Chevrons
+      entries:
+      - id: AU14ChevronCMBProbDeputy
+        amount: 2
 
 - type: entity
   parent: ColMarTechBase
@@ -807,7 +800,7 @@
       takeAll: CMStandard
       entries:
       - id: CMGlassesSecurity
-      - id: CMBeltSecurityMPFilled
+      - id: RMCBeltBrowne
       - id: RMCBoxZiptie
       - id: AU14GuidebookLawMarine
       - id: AU14GuidebookSOP
@@ -845,6 +838,17 @@
       - id: AU14PouchIFAKFill
       - id: RMCPouchMagazinePistol
       - id: RMCPouchPistol
+    - name: Record Keeping
+      takeAll: CMRecordKeeping
+      entries:
+      - id: RMCBoxRegulationTapesFull
+      - id: RMCUniversalRecorder
+      - id: CMHandLabeler
+      - id: RMCDigitalClock
+    - name: Inmate Restraining Gear
+      entries:
+      - id: AU14ClothingOuterStraitjacket
+        amount: 5 # TODO: bandaid - remove after mappers have placed this
 
 - type: entity
   parent: ColMarTechCargo
@@ -934,6 +938,8 @@
         amount: 2
       - id: RMCBoxClaymoreMineFilled
         amount: 3
+      - id: AU14BoxClaymoreMineIncendiaryFilled
+        amount: 1
       - id: AU14PacketGrenadeTearGasFilled
         amount: 3 #police get extra teargas
       - id: AU14PacketGrenadeTearGasFilledAirburst

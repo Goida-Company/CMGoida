@@ -24,6 +24,7 @@ public sealed partial class MentorManager : IPostInjectInit
     [Dependency] private IAdminManager _admin = default!;
     [Dependency] private IConfigurationManager _config = default!;
     [Dependency] private IServerDbManager _db = default!;
+    [Dependency] private IEntityManager _entMan = default!;
     [Dependency] private ILogManager _log = default!;
     [Dependency] private INetManager _net = default!;
     [Dependency] private IPlayerManager _player = default!;
@@ -32,8 +33,6 @@ public sealed partial class MentorManager : IPostInjectInit
     [Dependency] private UserDbDataManager _userDb = default!;
 
     private const string RateLimitKey = "MentorHelp";
-    private static readonly ProtoId<JobPrototype> MentorJob = "CMSeniorEnlistedAdvisor";
-
     private readonly HashSet<ICommonSession> _activeMentors = new();
     private readonly Dictionary<NetUserId, bool> _mentors = new();
     private readonly Dictionary<NetUserId, (TimeSpan Timestamp, bool Typing)> _typingUpdateTimestamps = new();
@@ -43,7 +42,7 @@ public sealed partial class MentorManager : IPostInjectInit
     private async Task LoadData(ICommonSession player, CancellationToken cancel)
     {
         var userId = player.UserId;
-        var isMentor = await _db.IsJobWhitelisted(player.UserId, MentorJob, cancel);
+        var isMentor = await _db.IsJobWhitelisted(player.UserId, MentorConstants.Job, cancel);
 
         if (!isMentor)
         {
@@ -277,6 +276,26 @@ public sealed partial class MentorManager : IPostInjectInit
         }
     }
 
+    private void OnMentorTeleport(MentorClientTeleportMsg message)
+    {
+        var author = message.MsgChannel;
+        if (!_player.TryGetSessionById(author.UserId, out var authorSession) ||
+            !_activeMentors.Contains(authorSession))
+        {
+            return;
+        }
+
+        if (authorSession.AttachedEntity is not { } mentorEntity)
+            return;
+
+        var destination = new NetUserId(message.Destination);
+        if (!_player.TryGetSessionById(destination, out var targetSession) || targetSession.AttachedEntity is not { } targetEntity)
+            return;
+
+        var ev = new MentorFollowEvent(_entMan.GetNetEntity(mentorEntity), _entMan.GetNetEntity(targetEntity));
+        _entMan.EventBus.RaiseLocalEvent(mentorEntity, ref ev);
+    }
+
     private void Unclaim(INetChannel author, NetUserId destination, bool disconnect)
     {
         if (!_destinationClaims.TryGetValue(destination, out var claims))
@@ -473,6 +492,7 @@ public sealed partial class MentorManager : IPostInjectInit
         _net.RegisterNetMessage<MentorClientUnclaimMsg>(OnClientUnclaim);
         _net.RegisterNetMessage<MentorClaimMsg>();
         _net.RegisterNetMessage<MentorUnclaimMsg>();
+        _net.RegisterNetMessage<MentorClientTeleportMsg>(OnMentorTeleport);
 
         _net.Connected += OnConnected;
         _net.Disconnect += OnDisconnected;

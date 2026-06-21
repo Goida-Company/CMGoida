@@ -5,9 +5,10 @@
   name: au14-preset-forceonforce-title
   showInVote: true
   description: au14-preset-forceonforce-description
-  minPlayers: 125
+  minPlayers: 100 # RuMC
   requiresOpforVote: true
   requiresGovforVote: true
+  respawnEnabled: false # RuMC
   supportedPlanets:
   #- AUPlanetGixensCaverns Rout of rotation till fixed - eg
   #- AUPlanetShepherdsPride
@@ -19,6 +20,7 @@
   - AUPlanetStableGarrison
   - AUPlanetTrijent
   - CMUPlanetLament
+  - CMUPlanetHopesRetreat
   rules:
   - AuVoteRule
   - PlatoonSpawn
@@ -43,6 +45,7 @@
     #- AUPlanetLV747
     - AUPlanetSorokyne
     - AuPlanetChances
+    - CMUPlanetHopesRetreat
   rules:
   - AuVoteRule
   - PlatoonSpawn
@@ -59,14 +62,16 @@
   requiresGovforVote: true
   supportedPlanets:
 #  - AUPlanetLV747
+#  - AUPlanetShepherdsPride
   - AUPlanetSorokyne
   - AUPlanetCorsatStation
   - AUPlanetTrijent
-  - AuPlanetFiorina
+#  - AuPlanetFiorina
   - AuPlanetKutjevo
   - AuPlanetShivasSnowball
   - AUPlanetLV327
   - AuPlanetChances
+  - CMUPlanetHopesRetreat
   rules:
   - AuVoteRule
   - PlatoonSpawn
@@ -80,10 +85,8 @@
   name: au14-preset-colonyfall-title
   showInVote: true
   minPlayers: 0
-  description: au14-preset-colonyfall-description
-  rules:
-    - AuVoteRule
-    - ColonyAntags
+  maxPlayers: 60
+  description: Live in an offworld colony as it falls into chaos.
   supportedPlanets:
     - AUPlanetShepherdsPride
     - AUPlanetLV327
@@ -91,7 +94,7 @@
     - CMUPlanetLament
     - AUPlanetSorokyne
     - AuPlanetChances
-
+    - CMUPlanetHopesRetreat
 
 - type: gamePreset
   id: Jailbreak
@@ -147,6 +150,7 @@
       AU14JobGOVFORSquadAutomaticRifleman: 3
       AU14JobGOVFORSquadCombatTech: 6
       AU14JobGOVFORSquadRifleman: 75
+      AU14JobGOVFORWeaponsSpecialist: 3
       AU14JobGOVFORAuxSupportSynth: 2
       AU14JobGOVFORadvisor: 1
       AU14JobGOVFORMilitaryDoctor: 3
@@ -170,6 +174,7 @@
       AU14JobOpforRadioTelephoneOperator: 4
       AU14JobOpforSquadSergeant: 3
       AU14JobOpforSquadAutomaticRifleman: 3
+#     AU14JobOPFORWeaponsSpecialist: 3 # TODO
       AU14JobOPFORSquadCombatTech: 6
       AU14JobOpforSquadRifleman: 75
       AU14JobOPFORAuxSupportSynth: 2

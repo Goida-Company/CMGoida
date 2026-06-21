@@ -122,7 +122,7 @@
     stampedColor: "#d19f2a"
     stampState: "paper_stamp-sea"
 
-# Liaisons and Ambassadors
+# Weyland Yutani
 
 - type: entity
   parent: AU14StampBase
@@ -135,6 +135,16 @@
     stampedName: stamp-component-stamped-name-au14-cl
     stampedColor: "#3681bb"
     stampState: "paper_stamp-we_ya"
+
+- type: entity
+  parent: AU14StampLiaison
+  id: AU14StampWYSci
+  name: corporate scientist's rubber stamp
+  components:
+  - type: Stamp
+    stampedName: stamp-component-stamped-name-au14-cs
+
+# Laselle Liaison and Ambassadors
 
 - type: entity
   parent: AU14StampBase
@@ -156,7 +166,7 @@
   - type: Sprite
     state: stamp-marine
   - type: Stamp
-    stampedName: stamp-component-stamped-name-au14-cl
+    stampedName: stamp-component-stamped-name-au14-uaa
     stampedColor: "#3681bb"
     stampState: "paper_stamp-cmb"
 
@@ -168,7 +178,7 @@
   - type: Sprite
     state: stamp-spp
   - type: Stamp
-    stampedName: stamp-component-stamped-name-au14-cl
+    stampedName: stamp-component-stamped-name-au14-uppa
     stampedColor: "#A70707"
     stampState: "paper_stamp-spp"
 
@@ -180,19 +190,19 @@
   - type: Sprite
     state: stamp-tse
   - type: Stamp
-    stampedName: stamp-component-stamped-name-au14-cl
+    stampedName: stamp-component-stamped-name-au14-twea
     stampedColor: "#BE601B"
     stampState: "paper_stamp-tse"
 
 - type: entity
   parent: AU14StampBase
-  id: AU14StampISCSA
+  id: AU14StampICSCA
   name: iscs ambassador's rubber stamp
   components:
   - type: Sprite
     state: stamp-rd
   - type: Stamp
-    stampedName: stamp-component-stamped-name-au14-cl
+    stampedName: stamp-component-stamped-name-au14-icsca
     stampedColor: "#808080"
     stampState: "paper_stamp-circle"
 
@@ -204,7 +214,7 @@
   - type: Sprite
     state: stamp-cap
   - type: Stamp
-    stampedName: stamp-component-stamped-name-au14-cl
+    stampedName: stamp-component-stamped-name-au14-ccaa
     stampedColor: "#ffae00"
     stampState: "paper_stamp-cca"
 
@@ -344,7 +354,7 @@
   components:
   - type: Stamp
     stampedName: stamp-component-stamped-name-au14-ocnsl
-    stampedColor: "#cb0000"
+    stampedColor: "#b0901b"
     stampState: "paper_stamp-lawyer"
 
 # Third Parties

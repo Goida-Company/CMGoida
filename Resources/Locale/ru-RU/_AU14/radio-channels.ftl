@@ -44,20 +44,12 @@ chat-radio-colony-softwave = Softwave
 
 chat-radio-part = ВУНД
 
-chat-radio-clf = КОФ
+chat-radio-CLF = КОФ
 
 chat-radio-govforcommand = КМД
 
-chat-radio-govforbravo = Браво
-
 chat-radio-govforjtac = СКАТ
 
-chat-radio-mob = Семья
-
-chat-radio-alert = Оповещение колонии
-
-chat-radio-uppsof = ССО СПН
-
-chat-radio-uasof = ССО США
-
 chat-radio-hivemind = УЛЕЙ
+
+chat-radio-govformp = ВП

@@ -10,6 +10,14 @@
     angle: 0
   - type: CMArmorPiercing
     amount: 20
+  - type: InteractedBlacklist
+    blacklist:
+      components:
+      - Xeno
+  - type: DamageOtherBlacklist
+    blacklist:
+      tags:
+      - Tree
 
 - type: entity
   parent: [ RMCBaseMeleeWeapon, BaseKnife, RMCAttachableBase ]
@@ -286,11 +294,11 @@
   - type: MeleeWeapon
     damage:
       types:
-        Slash: 47
+        Slash: 44
   - type: DamageOtherOnHit
     damage:
       types:
-        Slash: 27
+        Slash: 23
   - type: DamageImpactProfile
     melee:
       contact: Slash

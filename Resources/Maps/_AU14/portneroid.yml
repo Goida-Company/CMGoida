@@ -142719,13 +142719,6 @@ entities:
       rot: -1.5707963267948966 rad
       pos: 127.5,133.5
       parent: 1
-- proto: RMCAncientObelisk
-  entities:
-  - uid: 16575
-    components:
-    - type: Transform
-      pos: -4.5,-18.5
-      parent: 1
 - proto: RMCAntiAirPropFlipped
   entities:
   - uid: 16576
@@ -185451,7 +185444,7 @@ entities:
     - type: Transform
       pos: 47.5,160.5
       parent: 1
-- proto: RMCPickaxe
+- proto: AU14ToolPickaxe
   entities:
   - uid: 23925
     components:

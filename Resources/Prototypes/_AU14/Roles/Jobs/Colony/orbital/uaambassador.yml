@@ -11,8 +11,6 @@
   icon: "AU14JobIconUAAmbassador"
   requireAdminNotify: false
   joinNotifyCrew: false
-  whitelisted: true
-  whitelistParent: RMCWhitelistHard
   supervisors: au14-job-supervisors-orbital
   accessGroups:
   - Colonist
@@ -39,21 +37,21 @@
       prefix: au14-job-prefix-civilianambassadorua
     - type: TacticalMapIcon
       icon:
-        sprite: /Textures/_RMC14/Interface/map_blips.rsi
-        state: synth
+        sprite: /Textures/_AU14/Interface/au14colonyjobicons.rsi
+        state: ua_ambassador
     - type: NpcFactionMember
       factions:
-      - GOVFOR
+      - AUUnitedAmericas
+    # - CMUVAI
     - type: Marine
-      Faction: govfor
-  hidden: false
+    # Faction: ""
 
 - type: startingGear
   id: AU14GearCivilianAmbassadorUA
   equipment:
     jumpsuit: CMJumpsuitLiaisonBlack
     shoes: RMCShoesLaceupBrown
-    id: AU14IDCardColonyCorporateLiaison
+    id: AU14IDCardUAAmbassador
     outerClothing: RMCFancySuitJacketBrown
     ears: AU14AmbassadorUAHeadset
     pocket1: AU14StampUAA

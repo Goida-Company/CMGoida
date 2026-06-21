@@ -71,6 +71,10 @@ au14-job-name-govforAuxTech = Technician
 au14-job-description-govforAuxTech = Run requisitions, keep the ship running and tidy. Provide your faction with shipside logistics and engineering support.
 au14-job-prefix-govforAuxTech = AXT
 
+au14-job-name-govforweaponsspecialist = Weapons Specialist
+au14-job-description-govforweaponsspecialist = Operate your factions fire support and cover your squad.
+au14-job-prefix-govforweaponsspecialist = WS
+
 au14-job-prefix-AU14JobGOVFORPlatCoWYPMC = OPDIR
 au14-job-prefix-AU14JobGOVFORPlatoonCorpsmanWYPMC = CLS
 au14-job-prefix-AU14JobGOVFORDCCWYPMC = DCC
@@ -148,3 +152,15 @@ au14-job-prefix-juniorofficer-adj = AO
 
 au14-job-name-specialist-pyro = Pyrotechnician
 au14-job-prefix-specialist-pyro = PYRO
+
+au14-job-name-wypmc-platco = PMC Operations Director
+au14-job-name-wypmc-platop = PMC Operations Adjutant
+au14-job-name-wypmc-dspilot = PMC Pilot Officer
+au14-job-name-wypmc-dcc = PMC Crew Chief
+au14-job-name-wypmc-ssg = PMC Platoon Leader
+au14-job-name-wypmc-squadsergeant = PMC Squad Leader
+au14-job-name-wypmc-rifleman = PMC Contractor
+au14-job-name-wypmc-sar = PMC Smartgun Operator
+au14-job-name-wypmc-combattech = PMC Combat Technician
+au14-job-name-wypmc-corpsman = PMC Combat Lifesaver
+au14-job-name-wypmc-rto = PMC Communications Specialist

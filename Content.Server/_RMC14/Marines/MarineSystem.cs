@@ -1,3 +1,4 @@
+using Content.Server._RMC14.Humanoid; // RuMC edit
 using Content.Server.Access.Systems;
 using Content.Shared._RMC14.Marines;
 using Content.Shared.GameTicking;
@@ -12,15 +13,14 @@ public sealed partial class MarineSystem : SharedMarineSystem
     [Dependency] private IPrototypeManager _prototypes = default!;
     [Dependency] private IdCardSystem _idCard = default!;
 
-
     public override void Initialize()
     {
         base.Initialize();
 
-        SubscribeLocalEvent<MarineComponent, PlayerSpawnCompleteEvent>(OnPlayerSpawning);
+        SubscribeLocalEvent<PlayerSpawnCompleteEvent>(OnPlayerSpawning, after: [typeof(RMCHumanoidSystem)]); // RuMC edit
     }
 
-    private void OnPlayerSpawning(Entity<MarineComponent> ent, ref PlayerSpawnCompleteEvent args)
+    private void OnPlayerSpawning(PlayerSpawnCompleteEvent args) // RuMC edit
     {
         if (args.JobId is not { } jobId)
             return;
@@ -28,15 +28,14 @@ public sealed partial class MarineSystem : SharedMarineSystem
         if (!_prototypes.TryIndex<JobPrototype>(jobId, out var job) || !job.IsCM)
             return;
 
-        SpriteSpecifier? icon = null;
-        if (job.HasIcon && _prototypes.TryIndex(job.Icon, out var jobIcon))
-            icon = jobIcon.Icon;
+        // SpriteSpecifier ? icon = null;
+        // if (job.HasIcon && _prototypes.TryIndex(job.Icon, out var jobIcon))
+        //     icon = jobIcon.Icon;
+        MakeMarine(args.Mob, null, hideIcon: true);
 
-        MakeMarine(args.Mob, icon);
-
-        if (!_idCard.TryFindIdCard(ent, out var card))
+        if (!_idCard.TryFindIdCard(args.Mob, out var card)) // RuMC edit
             return;
 
-        card.Comp.OriginalOwner = ent.Owner;
+        _idCard.TryChangeOriginalOwner(card, args.Mob); // RuMC edit
     }
 }
