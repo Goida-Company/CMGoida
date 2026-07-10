@@ -770,9 +770,11 @@
     impactEffect: BulletImpactEffect
     damage:
       types:
-        Blunt: 25
-        Piercing: 15
+        Blunt: 12
+        Piercing: 8
     maxFixedRange: 0
+  - type: VehicleDamageMultiplier
+    multiplier: 10
   - type: TriggerOnFixedDistanceStop
     delay: 0
   - type: DeleteOnTrigger
@@ -787,9 +789,9 @@
     capacity: 8
     spreadAngle: 25
   - type: RMCProjectileAccuracy
-    accuracy: 110
+    accuracy: 100
     thresholds:
-    - range: 8
+    - range: 32
       falloff: 10
   - type: Sprite
     sprite: _RMC14/Objects/Weapons/Guns/Projectiles/projectiles.rsi
@@ -879,25 +881,6 @@
     intensitySlope: 5
     maxIntensity: 10
 
-- type: entity
-  id: BulletGrenadeFlash
-  name: flash grenade
-  parent: BaseBulletTrigger
-  categories: [ HideSpawnMenu ]
-  components:
-  - type: Sprite
-    sprite: Objects/Weapons/Guns/Projectiles/projectiles2.rsi
-    layers:
-      - state: grenade
-  - type: FlashOnTrigger
-    range: 7
-  - type: SpawnOnTrigger
-    proto: GrenadeFlashEffect
-  - type: ActiveTimerTrigger
-    timeRemaining: 0.3
-  - type: DeleteOnTrigger
-
-# This is supposed to spawn shrapnel and stuff so uhh... TODO?
 - type: entity
   id: BulletGrenadeFrag
   name: frag grenade

@@ -9,12 +9,11 @@ using Robust.Shared.Player;
 
 namespace Content.Server._CMU14.Language;
 
-public sealed class FactionLanguageSystem : EntitySystem
+public sealed partial class FactionLanguageSystem : EntitySystem
 {
     [Dependency] private LanguageSystem _language = default!;
     [Dependency] private UserInterfaceSystem _ui = default!;
     [Dependency] private IPrototypeManager _proto = default!;
-    [Dependency] private IPlayerManager _playerManager = default!;
 
     public override void Initialize()
     {

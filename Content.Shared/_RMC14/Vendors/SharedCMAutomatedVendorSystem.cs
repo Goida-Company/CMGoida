@@ -399,6 +399,7 @@ public abstract partial class SharedCMAutomatedVendorSystem : EntitySystem
     private void OnRecentlyGotEquipped<T>(Entity<RMCRecentlyVendedComponent> ent, ref T args)
     {
         RemCompDeferred<WallMountComponent>(ent);
+        RemCompDeferred<RMCRecentlyVendedComponent>(ent);
     }
 
     protected virtual void OnVendBui(Entity<CMAutomatedVendorComponent> vendor, ref CMVendorVendBuiMsg args)
@@ -613,7 +614,6 @@ public abstract partial class SharedCMAutomatedVendorSystem : EntitySystem
         {
             if (vendor.Comp.UseObjectivePoints)
             {
-                Log.Info($"[VENDOR DEBUG] Objective purchase: actor={ToPrettyString(actor)}, entry={entry.Id}, cost={entry.Points}");
                 // Read the cached faction win points directly from the vendor component
                 var available = vendor.Comp.CachedFactionWinPoints;
 
@@ -636,8 +636,6 @@ public abstract partial class SharedCMAutomatedVendorSystem : EntitySystem
                 // Update the vendor cache immediately so the UI reflects the new balance
                 var newBalance = available - entry.Points.Value;
                 UpdateVendorFactionPointsCache(faction, newBalance);
-
-                Log.Info($"[VENDOR DEBUG] Points deducted successfully, new balance: {newBalance}");
             }
             else
             {
@@ -729,11 +727,10 @@ public abstract partial class SharedCMAutomatedVendorSystem : EntitySystem
 
         var min = comp.MinOffset;
         var max = comp.MaxOffset;
-        Log.Info($"[VENDOR DEBUG] Spawning {entry.Spawn} copies of {entry.Id}");
         for (var i = 0; i < entry.Spawn; i++)
         {
             var offset = _random.NextVector2Box(min.X, min.Y, max.X, max.Y);
-            if (entity.TryGetComponent(out CMVendorBundleComponent? bundle, _compFactory))
+            if (entity.TryComp(out CMVendorBundleComponent? bundle, _compFactory))
             {
                 foreach (var bundled in bundle.Bundle)
                 {
@@ -746,7 +743,7 @@ public abstract partial class SharedCMAutomatedVendorSystem : EntitySystem
             }
         }
 
-        if (entity.TryGetComponent(out CMChangeUserOnVendComponent? change, _compFactory) &&
+        if (entity.TryComp(out CMChangeUserOnVendComponent? change, _compFactory) &&
             change.AddComponents != null)
         {
             EntityManager.AddComponents(actor, change.AddComponents);
@@ -755,7 +752,7 @@ public abstract partial class SharedCMAutomatedVendorSystem : EntitySystem
 
     private void Vend(EntityUid vendor, EntityUid player, EntProtoId toVend, Vector2 offset, SlotFlags? replaceSlot = null)
     {
-        if (_prototypes.Index(toVend).TryGetComponent(out CMVendorMapToSquadComponent? mapTo, _compFactory))
+        if (_prototypes.Index(toVend).TryComp(out CMVendorMapToSquadComponent? mapTo, _compFactory))
         {
             if (TryComp(player, out SquadMemberComponent? member) &&
                 member.Squad is { } squad &&
@@ -793,14 +790,7 @@ public abstract partial class SharedCMAutomatedVendorSystem : EntitySystem
 
     private void AfterVend(EntityUid spawn, EntityUid player, EntityUid vendor, Vector2 offset, bool vended = false, SlotFlags? replaceSlot = null)
     {
-        var recently = EnsureComp<RMCRecentlyVendedComponent>(spawn);
-        var anchored = _rmcMap.GetAnchoredEntitiesEnumerator(spawn);
-        while (anchored.MoveNext(out var uid))
-        {
-            recently.PreventCollide.Add(uid);
-        }
-
-        Dirty(spawn, recently);
+        EnsureComp<RMCRecentlyVendedComponent>(spawn);
 
         var mount = EnsureComp<WallMountComponent>(spawn);
         mount.Arc = Angle.FromDegrees(360);
@@ -922,7 +912,7 @@ public abstract partial class SharedCMAutomatedVendorSystem : EntitySystem
         if (entry.BoxSlots is not { } boxSlots)
         {
             if (!_prototypes.TryIndex(entry.Id, out var boxProto) ||
-                !boxProto.TryGetComponent(out CMItemSlotsComponent? slots, _compFactory) ||
+                !boxProto.TryComp(out CMItemSlotsComponent? slots, _compFactory) ||
                 slots.Count is not { } count)
             {
                 return 1;

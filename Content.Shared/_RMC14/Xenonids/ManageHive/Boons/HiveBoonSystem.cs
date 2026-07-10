@@ -494,16 +494,26 @@ public sealed partial class HiveBoonSystem : EntitySystem
             return;
         }
 
-        foreach (var curWeed in oldWeeds.Spread)
+        foreach (var curWeed in oldWeeds.Spread.ToArray())
         {
+            if (TerminatingOrDeleted(curWeed))
+            {
+                oldWeeds.Spread.Remove(curWeed);
+                continue;
+            }
+
             var curWeedComp = EnsureComp<XenoWeedsComponent>(curWeed);
             curWeedComp.Range = newWeedSourceComp.Range;
             curWeedComp.Source = newWeedSource;
-            newWeedSourceComp.Spread.Add(curWeed);
+            Dirty(curWeed, curWeedComp);
+
+            if (!newWeedSourceComp.Spread.Contains(curWeed))
+                newWeedSourceComp.Spread.Add(curWeed);
         }
 
         oldWeeds.Spread.Clear();
         Dirty(cluster, oldWeeds);
+        Dirty(newWeedSource, newWeedSourceComp);
 
         RemComp<XenoWeedsSpreadingComponent>(newWeedSource);
         QueueDel(cluster);
@@ -512,7 +522,7 @@ public sealed partial class HiveBoonSystem : EntitySystem
     public void TryActivateBoon(Entity<ManageHiveComponent> manage, EntProtoId<HiveBoonDefinitionComponent> boon)
     {
         if (!_prototype.TryIndex(boon, out var boonProto) ||
-            !boonProto.TryGetComponent(out HiveBoonDefinitionComponent? boonComp, _compFactory))
+            !boonProto.TryComp(out HiveBoonDefinitionComponent? boonComp, _compFactory))
         {
             return;
         }
@@ -643,7 +653,7 @@ public sealed partial class HiveBoonSystem : EntitySystem
     private bool TryGetUnlockAt(Entity<HiveBoonsComponent> boons, EntProtoId<HiveBoonDefinitionComponent> boonId, out TimeSpan unlockAt)
     {
         if (!_prototype.TryIndex(boonId, out var boon) ||
-            !boon.TryGetComponent(out HiveBoonDefinitionComponent? boonComp, _compFactory))
+            !boon.TryComp(out HiveBoonDefinitionComponent? boonComp, _compFactory))
         {
             unlockAt = TimeSpan.Zero;
             return false;
@@ -672,7 +682,7 @@ public sealed partial class HiveBoonSystem : EntitySystem
         var boons = ImmutableArray.CreateBuilder<(EntityPrototype Prototype, HiveBoonDefinitionComponent Component)>();
         foreach (var prototype in _prototype.EnumeratePrototypes<EntityPrototype>())
         {
-            if (!prototype.TryGetComponent(out HiveBoonDefinitionComponent? comp, _compFactory))
+            if (!prototype.TryComp(out HiveBoonDefinitionComponent? comp, _compFactory))
                 continue;
 
             boons.Add((prototype, comp));

@@ -462,7 +462,6 @@
   components:
   - type: StorageFill
     contents:
-    - id: RMCPacketGrenadeFlashBang
     - id: RMCWeaponTaser # TODO RMC14 4 tear gas grenades
 
 - type: entity
@@ -541,7 +540,7 @@
 - type: entity
   parent: CMSatchelMarine
   id: RMCSatchelMarineChestrigPVE # Reskin for PVE
-  name: UNMC IMP chestrig
+  name: USCM IMP chestrig
   description: A heavy-duty IMP based chestrig, can quickly be accessed with only one hand.
   suffix: PVE
   components:
@@ -558,8 +557,8 @@
 - type: entity
   parent: CMSatchelMarineIntel
   id: RMCSatchelMarineIntelSatchel
-  name: UNMC lightweight expedition satchel
-  description: A heavy-duty IMP based satchel, reinforced with kevlar so it doesn't rip. Can quickly be accessed with only one hand. Usually issued to UNMC intelligence officers.
+  name: USCM lightweight expedition satchel
+  description: A heavy-duty IMP based satchel, reinforced with kevlar so it doesn't rip. Can quickly be accessed with only one hand. Usually issued to USCM intelligence officers.
   components:
   - type: Sprite
     sprite: _RMC14/Objects/Clothing/Back/Satchels/Marines/intel.rsi
@@ -859,7 +858,7 @@
     grid:
     - 0,0,14,1 # 1
   - type: RotaryPhone
-    category: Socialist Progressive People
+    category: UPP
   - type: ItemCamouflage
     camouflageVariations: {}
 
@@ -1144,7 +1143,6 @@
   - type: StorageFill
     contents:
     # M40 CCDP Greande #RMC14 TODO
-    - id: RMCGrenadeFlashBang
     - id: RMCLaserDesignator
     - id: RMCArmorM3General
     - id: CMArmorHelmetM11CGeneral

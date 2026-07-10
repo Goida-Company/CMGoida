@@ -4,6 +4,8 @@ using System.Linq;
 using System.Numerics;
 using Content.Shared._RMC14.Intel;
 using Content.Shared._RMC14.Intel.Tech;
+using Content.Shared._RMC14.Requisitions;
+using Content.Shared._RMC14.Requisitions.Components;
 using Content.Shared._RMC14.Vehicle;
 using Content.Shared._RMC14.Vehicle.Supply;
 using Content.Shared._RMC14.Vendors;
@@ -13,8 +15,10 @@ using Content.Shared.Mobs.Components;
 using Content.Shared.Physics;
 using Content.Shared.Tag;
 using Content.Shared.UserInterface;
+using Content.Shared.Vehicle.Components;
 using Robust.Server.Audio;
 using Robust.Server.GameObjects;
+using Robust.Shared.Containers;
 using Robust.Shared.GameObjects;
 using Robust.Shared.Map;
 using Robust.Shared.Player;
@@ -29,12 +33,15 @@ public sealed partial class VehicleSupplySystem : EntitySystem
     private const int VendedHardpointAmmoCount = 3;
 
     [Dependency] private AudioSystem _audio = default!;
+    [Dependency] private EntityLookupSystem _lookup = default!;
     [Dependency] private IntelSystem _intel = default!;
     [Dependency] private IComponentFactory _compFactory = default!;
     [Dependency] private IGameTiming _timing = default!;
     [Dependency] private IPrototypeManager _prototypes = default!;
     [Dependency] private PhysicsSystem _physics = default!;
+    [Dependency] private SharedContainerSystem _containers = default!;
     [Dependency] private ItemSlotsSystem _itemSlots = default!;
+    [Dependency] private SharedRequisitionsSystem _requisitions = default!;
     [Dependency] private SharedTransformSystem _transform = default!;
     [Dependency] private SharedUserInterfaceSystem _ui = default!;
     [Dependency] private SharedCMAutomatedVendorSystem _vendor = default!;
@@ -303,7 +310,7 @@ public sealed partial class VehicleSupplySystem : EntitySystem
             if (proto.Abstract)
                 continue;
 
-            if (!proto.TryGetComponent(out HardpointItemComponent? hardpointItem, _compFactory))
+            if (!proto.TryComp(out HardpointItemComponent? hardpointItem, _compFactory))
                 continue;
 
             _hardpointTypeByProto[Normalize(proto.ID)] = hardpointItem.HardpointType;
@@ -316,7 +323,7 @@ public sealed partial class VehicleSupplySystem : EntitySystem
             }
 
             var tags = new HashSet<ProtoId<TagPrototype>>();
-            if (proto.TryGetComponent(out TagComponent? tagComp, _compFactory))
+            if (proto.TryComp(out TagComponent? tagComp, _compFactory))
                 tags = new HashSet<ProtoId<TagPrototype>>(tagComp.Tags);
 
             list.Add(new HardpointItemInfo(proto.ID, tags));
@@ -447,7 +454,7 @@ public sealed partial class VehicleSupplySystem : EntitySystem
             if (proto.Abstract)
                 continue;
 
-            if (!proto.TryGetComponent(out BulletBoxComponent? box, _compFactory))
+            if (!proto.TryComp(out BulletBoxComponent? box, _compFactory))
                 continue;
 
             if (box.BulletType != bulletType)
@@ -597,6 +604,9 @@ public sealed partial class VehicleSupplySystem : EntitySystem
             if (comp.Mode == VehicleSupplyLiftMode.Lowered)
                 return;
 
+            if (comp.ActiveVehicle == null)
+                TryAdoptVehicleOnLift(lift);
+
             if (IsLoweringBlocked(lift))
                 return;
         }
@@ -604,6 +614,24 @@ public sealed partial class VehicleSupplySystem : EntitySystem
         comp.ToggledAt = _timing.CurTime;
         comp.Busy = true;
         SetMode(lift, VehicleSupplyLiftMode.Preparing, raise ? VehicleSupplyLiftMode.Raising : VehicleSupplyLiftMode.Lowering);
+    }
+
+    private void TryAdoptVehicleOnLift(Entity<VehicleSupplyLiftComponent> lift)
+    {
+        var comp = lift.Comp;
+        var coords = _transform.GetMapCoordinates(lift);
+        foreach (var candidate in _lookup.GetEntitiesInRange<VehicleComponent>(coords, comp.Radius))
+        {
+            if (Deleted(candidate.Owner) || candidate.Owner == comp.ActiveVehicle)
+                continue;
+
+            if (!TryComp(candidate.Owner, out MetaDataComponent? meta) || meta.EntityPrototype is not { } prototype)
+                continue;
+
+            comp.ActiveVehicle = candidate.Owner;
+            comp.ActiveVehicleId = prototype.ID;
+            return;
+        }
     }
 
     private bool IsLoweringBlocked(Entity<VehicleSupplyLiftComponent> lift)
@@ -635,7 +663,25 @@ public sealed partial class VehicleSupplySystem : EntitySystem
         lift.Comp.Mode = mode;
         lift.Comp.NextMode = nextMode;
         Dirty(lift);
+
+        RequisitionsRailingMode? railingMode = (mode, nextMode) switch
+        {
+            (VehicleSupplyLiftMode.Lowered, _) => RequisitionsRailingMode.Raised,
+            (VehicleSupplyLiftMode.Raised, _) => RequisitionsRailingMode.Lowering,
+            (_, VehicleSupplyLiftMode.Lowering) => RequisitionsRailingMode.Raising,
+            _ => null
+        };
+
+        if (railingMode != null)
+            UpdateRailings(lift, railingMode.Value);
+
         SendConsoleStateAll();
+    }
+
+    private void UpdateRailings(Entity<VehicleSupplyLiftComponent> lift, RequisitionsRailingMode mode)
+    {
+        var coordinates = _transform.GetMapCoordinates(lift);
+        _requisitions.UpdateRailingsInRange(coordinates, lift.Comp.RailingRange, mode);
     }
 
     private void TryPlayAudio(Entity<VehicleSupplyLiftComponent> lift)
@@ -889,13 +935,33 @@ public sealed partial class VehicleSupplySystem : EntitySystem
         if (!TryResolveLoadoutSlot(vehicle, option.Slot, out var slotOwner, out var slot))
             return false;
 
-        if (slot.Item is { })
+        if (slot.Item is { } existing &&
+            TryComp(existing, out MetaDataComponent? meta) &&
+            meta.EntityPrototype?.ID == option.Item.Id)
         {
-            if (!_itemSlots.TryEject(slotOwner, slot, null, out var removed, excludeUserAudio: true))
-                return false;
+            return true;
+        }
 
-            if (removed is { } removedEntity && !Deleted(removedEntity))
-                QueueDel(removedEntity);
+        if (slot.Item is { } existingItem)
+        {
+            EntityUid removed;
+            if (_itemSlots.TryEject(slotOwner, slot, null, out var ejected, excludeUserAudio: true))
+            {
+                removed = ejected.Value;
+            }
+            else
+            {
+                if (slot.ContainerSlot == null ||
+                    !_containers.Remove(existingItem, slot.ContainerSlot, force: true, destination: Transform(vehicle).Coordinates))
+                {
+                    return false;
+                }
+
+                removed = existingItem;
+            }
+
+            if (!Deleted(removed))
+                QueueDel(removed);
         }
 
         var item = Spawn(option.Item.Id, Transform(vehicle).Coordinates);
@@ -1997,7 +2063,7 @@ public sealed partial class VehicleSupplySystem : EntitySystem
             return _hardpointsByVehicleCache[key];
         }
 
-        if (!vehicleProto.TryGetComponent(out HardpointSlotsComponent? slots, _compFactory))
+        if (!vehicleProto.TryComp(out HardpointSlotsComponent? slots, _compFactory))
         {
             _hardpointsByVehicleCache[key] = new List<string>();
             return _hardpointsByVehicleCache[key];

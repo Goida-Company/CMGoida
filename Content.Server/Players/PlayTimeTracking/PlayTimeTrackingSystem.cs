@@ -10,7 +10,6 @@ using Content.Server.Preferences.Managers;
 using Content.Server.Station.Events;
 using Content.Shared.CCVar;
 using Content.Shared.GameTicking;
-using Content.Shared.Mind;
 using Content.Shared.Mobs;
 using Content.Shared.Mobs.Components;
 using Content.Shared.Players;
@@ -99,20 +98,6 @@ public sealed partial class PlayTimeTrackingSystem : EntitySystem
 
     public IEnumerable<string> GetTimedRoles(EntityUid mindId)
     {
-        if (TryComp(mindId, out MindComponent? mind))
-        {
-            foreach (var roleId in mind.MindRoles)
-            {
-                if (!TryComp(roleId, out MindRoleComponent? mindRole) ||
-                    mindRole.PlayTimeTracker is not { } tracker)
-                {
-                    continue;
-                }
-
-                yield return _prototypes.Index<PlayTimeTrackerPrototype>(tracker).ID;
-            }
-        }
-
         foreach (var role in _roles.MindGetAllRoleInfo(mindId))
         {
             if (string.IsNullOrWhiteSpace(role.PlayTimeTrackerId))
@@ -232,7 +217,7 @@ public sealed partial class PlayTimeTrackingSystem : EntitySystem
 
         foreach (var job in _prototypes.EnumeratePrototypes<JobPrototype>())
         {
-            if (JobRequirements.TryRequirementsMet(job, playTimes, out _, EntityManager, _prototypes, (HumanoidCharacterProfile?) _preferencesManager.GetPreferences(player.UserId).SelectedCharacter))
+            if (!JobRequirements.TryRequirementsMet(job, playTimes, out _, EntityManager, _prototypes, (HumanoidCharacterProfile?) _preferencesManager.GetPreferences(player.UserId).SelectedCharacter))
                 roles.Add(job.ID);
         }
 

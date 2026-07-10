@@ -1,0 +1,41 @@
+- type: entity
+  parent: RMCCrateWeapons
+  id: RuMCCrateUTES-C
+  name: Contains the UTES-C 12.7mm heavy machine gun and 4 ammunition boxes.
+  components:
+  - type: StorageFill
+    contents:
+    - id: RuMCUTES-CCase
+      amount: 1
+
+- type: entity
+  parent: RMCCrateWeapons
+  id: RuMCCrateUTES-CMagazine
+  name: Contains the UTES-C Magazine.
+  components:
+  - type: StorageFill
+    contents:
+    - id: RuMCMagazineUTES-C
+      amount: 1
+    - id: RuMCMagazineUTES-CTracter
+      amount: 1
+
+- type: entity
+  parent: RMCCrateWeapons
+  id: RuMCCrateRPG_36
+  name: Contains the RPG-36.
+  components:
+  - type: StorageFill
+    contents:
+    - id: RuMCWeaponLauncherDisposableFolded
+      amount: 4
+
+- type: entity
+  parent: RMCCrateWeapons
+  id: RuMCCrateRPO_Pchela
+  name: Contains the RPO-Pchela.
+  components:
+  - type: StorageFill
+    contents:
+    - id: RuMCWeaponLauncherDisposableFoldedIncen
+      amount: 4

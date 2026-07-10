@@ -55,9 +55,11 @@ public abstract partial class CMUSharedZLevelsSystem
     private EntityQuery<CMUZLevelHighGroundComponent> _highgroundQuery;
     private EntityQuery<CMUVehicleZTraversalComponent> _vehicleTraversalQuery;
     private readonly HashSet<EntityUid> _moveSnapSuppressed = new();
+    private readonly HashSet<EntityUid> _fallImpactVictims = new();
     private readonly HashSet<(EntityUid Puller, EntityUid Pulled)> _deferredPullJointRefreshes = new();
     private readonly List<(EntityUid Puller, EntityUid Pulled)> _deferredPullJointRefreshBuffer = new();
     private readonly List<Vector2> _vehicleSupportSamples = new();
+    private readonly List<EntityUid> _zMovementUpdateQueue = new();
     private int _profileZMovementStoppedParent;
     private int _profileZMovementStoppedNoMap;
     private int _profileZMovementGroundContacts;
@@ -170,9 +172,10 @@ public abstract partial class CMUSharedZLevelsSystem
         if (_vehicleTraversalQuery.HasComp(ent.Owner))
             return;
 
-        var entitiesAround = _lookup.GetEntitiesInRange(ent, 0.25f, LookupFlags.Uncontained);
+        _fallImpactVictims.Clear();
+        _lookup.GetEntitiesInRange(ent, 0.25f, _fallImpactVictims, LookupFlags.Uncontained);
 
-        foreach (var victim in entitiesAround)
+        foreach (var victim in _fallImpactVictims)
         {
             if (victim == ent.Owner)
                 continue;
@@ -197,9 +200,23 @@ public abstract partial class CMUSharedZLevelsSystem
             ResetZMovementProfileCounters();
 
         var processed = 0;
+        _zMovementUpdateQueue.Clear();
         var query = EntityQueryEnumerator<CMUZPhysicsComponent, CMUZFallingComponent, TransformComponent, PhysicsComponent>();
-        while (query.MoveNext(out var uid, out var zPhys, out _, out var xform, out var physics))
+        while (query.MoveNext(out var uid, out _, out _, out _, out _))
         {
+            _zMovementUpdateQueue.Add(uid);
+        }
+
+        foreach (var uid in _zMovementUpdateQueue)
+        {
+            if (!TryComp<CMUZPhysicsComponent>(uid, out var zPhys) ||
+                !HasComp<CMUZFallingComponent>(uid) ||
+                !TryComp(uid, out TransformComponent? xform) ||
+                !TryComp<PhysicsComponent>(uid, out var physics))
+            {
+                continue;
+            }
+
             processed++;
 
             if (xform.ParentUid != xform.MapUid)
@@ -347,6 +364,7 @@ public abstract partial class CMUSharedZLevelsSystem
 
             DirtyZPhysics(uid, zPhys, oldVelocity, oldHeight);
         }
+        _zMovementUpdateQueue.Clear();
 
         if (profiling)
         {

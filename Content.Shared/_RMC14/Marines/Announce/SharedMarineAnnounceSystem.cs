@@ -327,6 +327,7 @@ public abstract partial class SharedMarineAnnounceSystem : EntitySystem
         AnnounceToMarines(wrappedMessage, sound, filter, excludeSurvivors, faction);
         RaiseLocalEvent(new RMCAnnouncementMadeEvent(sender, message, filter, excludeSurvivors, faction)); // RuMC Announce TTS
         AnnounceSignedUi(sender, message, author, name, sound, filter, excludeSurvivors, faction);
+
         _adminLog.Add(LogType.RMCMarineAnnounce, $"{ToPrettyString(sender):source} marine announced message: {message}");
 
         if (_idCard.TryFindIdCard(sender, out var idCard) && TryComp(idCard, out ItemIFFComponent? idCardIFF))

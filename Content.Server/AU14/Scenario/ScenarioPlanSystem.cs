@@ -1,14 +1,15 @@
 using System.IO;
 using System.Linq;
 using Content.Server._CMU14.Threats;
+using Content.Server.Chat.Managers;
 using Content.Server.GameTicking.Presets;
 using Content.Server.Maps;
 using Content.Server.Spawners.Components;
 using Content.Shared._CMU14.Threats;
 using Content.Shared._RMC14.Rules;
+using Content.Shared._RMC14.Spawners;
 using Content.Shared.AU14;
 using Content.Shared.AU14.Scenario;
-using Content.Shared._CMU14.Threats;
 using Content.Shared.AU14.util;
 using Robust.Shared.ContentPack;
 using Robust.Shared.Map;
@@ -26,8 +27,10 @@ public sealed partial class ScenarioPlanSystem : EntitySystem, IScenarioPlanGene
     private const string DistressSignalPresetId = "DistressSignal";
     private const string ColonyFallPresetId = "ColonyFall";
     private const string InsurgencyPresetId = "Insurgency";
+    private const int ScenarioPlanAnnouncementMaxDiagnosticLength = 500;
     private const string SmallestCandidateReservationPolicyId = "SmallestCandidateBodyCountAllowsUnderfill";
 
+    [Dependency] private IChatManager _chat = default!;
     [Dependency] private IComponentFactory _componentFactory = default!;
     [Dependency] private IPrototypeManager _prototypes = default!;
     [Dependency] private IResourceManager _resources = default!;
@@ -91,7 +94,12 @@ public sealed partial class ScenarioPlanSystem : EntitySystem, IScenarioPlanGene
         if (usedBackup)
         {
             sawmill.Warning(
-                $"[ScenarioPlanSystem] Shadow Scenario Plan validation failed for {request.PresetId} ({reason}); using validated Voting Backup for planet {request.PlanetId} map {request.MapId}.");
+                $"[ScenarioPlanSystem] Shadow Scenario Plan validation failed for {request.PresetId} ({reason}); using validated Voting Backup for planet {request.PlanetId} map {request.MapId}. Diagnostic: {backupDiagnostic}");
+            AnnounceScenarioPlanFailure(
+                "au14-scenario-plan-failed-backup-announcement",
+                request,
+                reason,
+                backupDiagnostic);
         }
         else if (report.IsValid)
         {
@@ -102,6 +110,11 @@ public sealed partial class ScenarioPlanSystem : EntitySystem, IScenarioPlanGene
         {
             sawmill.Warning(
                 $"[ScenarioPlanSystem] Shadow Scenario Plan generated diagnostics for {request.PresetId} ({reason}): {report}. Backup diagnostic: {backupDiagnostic}");
+            AnnounceScenarioPlanFailure(
+                "au14-scenario-plan-failed-no-backup-announcement",
+                request,
+                reason,
+                report.ToString());
         }
 
         return snapshot;
@@ -123,20 +136,56 @@ public sealed partial class ScenarioPlanSystem : EntitySystem, IScenarioPlanGene
             return report;
         }
 
+        var markerDiagnostic = report.ToString();
+        var backupResolveDiagnostic = string.Empty;
         if (TryResolveVotingBackup(
                 request.PresetId,
                 request.PlanetId,
                 request.MapId,
                 request.PlayerCount,
                 out var backupPlan,
-                out backupDiagnostic) &&
+                out backupResolveDiagnostic) &&
             backupPlan != null)
         {
             usedBackup = true;
+            backupDiagnostic = markerDiagnostic;
             return new ScenarioPlanValidationReport(new[] { backupPlan }, backupPlan.Diagnostics);
         }
 
+        backupDiagnostic = backupResolveDiagnostic;
         return report;
+    }
+
+    private void AnnounceScenarioPlanFailure(
+        string locId,
+        ScenarioPlanValidationRequest request,
+        string reason,
+        string diagnostic)
+    {
+        _chat.DispatchServerAnnouncement(
+            Loc.GetString(locId,
+                ("preset", request.PresetId),
+                ("reason", reason),
+                ("planet", request.PlanetId ?? "<any>"),
+                ("map", request.MapId ?? "<any>"),
+                ("threat", request.SelectedThreatId ?? "<none>"),
+                ("diagnostic", PrepareAnnouncementDiagnostic(diagnostic))),
+            Color.Red);
+    }
+
+    private static string PrepareAnnouncementDiagnostic(string diagnostic)
+    {
+        if (string.IsNullOrWhiteSpace(diagnostic))
+            return "No diagnostic details were reported.";
+
+        diagnostic = diagnostic
+            .Replace('\r', ' ')
+            .Replace('\n', ' ');
+
+        if (diagnostic.Length <= ScenarioPlanAnnouncementMaxDiagnosticLength)
+            return diagnostic;
+
+        return $"{diagnostic[..ScenarioPlanAnnouncementMaxDiagnosticLength]}...";
     }
 
     private IReadOnlyList<ScenarioPlan> GeneratePlansForRuntimeResolution(
@@ -2267,7 +2316,7 @@ public sealed partial class ScenarioPlanSystem : EntitySystem, IScenarioPlanGene
         int count,
         List<ResolvedSpawnMarker> markers)
     {
-        if (entityPrototype.TryGetComponent<ScenarioSpawnMarkerComponent>(out var scenarioMarker, _componentFactory))
+        if (entityPrototype.TryComp<ScenarioSpawnMarkerComponent>(out var scenarioMarker, _componentFactory))
         {
             markers.Add(new ResolvedSpawnMarker(
                 prototypeId,
@@ -2275,16 +2324,16 @@ public sealed partial class ScenarioPlanSystem : EntitySystem, IScenarioPlanGene
                 ToScenarioMarkerKind(scenarioMarker.Kind),
                 ScenarioMarkerTagsFor(
                     scenarioMarker.Tags,
-                    entityPrototype.TryGetComponent<ParachuteMarkerComponent>(out _, _componentFactory)),
+                    entityPrototype.TryComp<ParachuteMarkerComponent>(out _, _componentFactory)),
                 count * Math.Max(1, scenarioMarker.Count),
                 sourcePath));
             return;
         }
 
-        if (entityPrototype.TryGetComponent<ThreatSpawnMarkerComponent>(out var threatMarker, _componentFactory))
+        if (entityPrototype.TryComp<ThreatSpawnMarkerComponent>(out var threatMarker, _componentFactory))
         {
             var thirdParty = threatMarker.ThirdParty;
-            var parachute = entityPrototype.TryGetComponent<ParachuteMarkerComponent>(out _, _componentFactory);
+            var parachute = entityPrototype.TryComp<ParachuteMarkerComponent>(out _, _componentFactory);
             markers.Add(new ResolvedSpawnMarker(
                 prototypeId,
                 mapId,
@@ -2294,7 +2343,31 @@ public sealed partial class ScenarioPlanSystem : EntitySystem, IScenarioPlanGene
                 sourcePath));
         }
 
-        if (entityPrototype.TryGetComponent<SafehouseMarkerComponent>(out _, _componentFactory))
+        if (entityPrototype.TryComp<XenoLeaderSpawnPointComponent>(out _, _componentFactory))
+        {
+            markers.Add(new ResolvedSpawnMarker(
+                prototypeId,
+                mapId,
+                ScenarioMarkerKind.ThreatMarker,
+                ThreatMarkerTags(ThreatMarkerType.Leader, string.Empty, thirdParty: false),
+                count,
+                sourcePath));
+            return;
+        }
+
+        if (entityPrototype.TryComp<XenoSpawnPointComponent>(out _, _componentFactory))
+        {
+            markers.Add(new ResolvedSpawnMarker(
+                prototypeId,
+                mapId,
+                ScenarioMarkerKind.ThreatMarker,
+                ThreatMarkerTags(ThreatMarkerType.Member, string.Empty, thirdParty: false),
+                count,
+                sourcePath));
+            return;
+        }
+
+        if (entityPrototype.TryComp<SafehouseMarkerComponent>(out _, _componentFactory))
         {
             markers.Add(new ResolvedSpawnMarker(
                 prototypeId,
@@ -2305,7 +2378,7 @@ public sealed partial class ScenarioPlanSystem : EntitySystem, IScenarioPlanGene
                 sourcePath));
         }
 
-        if (entityPrototype.TryGetComponent<SpawnPointComponent>(out var spawnPoint, _componentFactory) &&
+        if (entityPrototype.TryComp<SpawnPointComponent>(out var spawnPoint, _componentFactory) &&
             spawnPoint.Job != null &&
             spawnPoint.Job.Value.Id.Equals(ColonyCivilianJobId, StringComparison.OrdinalIgnoreCase))
         {
@@ -2323,7 +2396,7 @@ public sealed partial class ScenarioPlanSystem : EntitySystem, IScenarioPlanGene
     {
         planet = default!;
         if (!_prototypes.TryIndex<EntityPrototype>(planetId, out var planetPrototype) ||
-            !planetPrototype.TryGetComponent<RMCPlanetMapPrototypeComponent>(out var planetComp, _componentFactory))
+            !planetPrototype.TryComp<RMCPlanetMapPrototypeComponent>(out var planetComp, _componentFactory))
         {
             return false;
         }
@@ -2467,6 +2540,34 @@ public sealed partial class ScenarioPlanSystem : EntitySystem, IScenarioPlanGene
 
             var markerTags = new[] { ClfCivilianSpawnTag() };
             if (requiredTags.All(tag => markerTags.Contains(tag, StringComparer.OrdinalIgnoreCase)))
+                markers.Add(uid);
+        }
+
+        var leaderTags = ThreatMarkerTags(ThreatMarkerType.Leader, string.Empty, thirdParty: false);
+        var leaderQuery = EntityQueryEnumerator<XenoLeaderSpawnPointComponent, TransformComponent>();
+        while (leaderQuery.MoveNext(out var uid, out _, out var transform))
+        {
+            if (transform.MapID != mapId ||
+                explicitMarkers.Contains(uid))
+            {
+                continue;
+            }
+
+            if (requiredTags.All(tag => leaderTags.Contains(tag, StringComparer.OrdinalIgnoreCase)))
+                markers.Add(uid);
+        }
+
+        var memberTags = ThreatMarkerTags(ThreatMarkerType.Member, string.Empty, thirdParty: false);
+        var memberQuery = EntityQueryEnumerator<XenoSpawnPointComponent, TransformComponent>();
+        while (memberQuery.MoveNext(out var uid, out _, out var transform))
+        {
+            if (transform.MapID != mapId ||
+                explicitMarkers.Contains(uid))
+            {
+                continue;
+            }
+
+            if (requiredTags.All(tag => memberTags.Contains(tag, StringComparer.OrdinalIgnoreCase)))
                 markers.Add(uid);
         }
 

@@ -101,6 +101,8 @@
   - type: Damageable
     damageContainer: StructuralMarine
     damageModifierSet: VehicleFrameTank
+  - type: ReceiverXenoClaws
+    minimumClawStrength: Sharp
   - type: InteractionOutline
   - type: Sprite
     drawdepth: Mobs
@@ -210,7 +212,6 @@
     slotCount: 1
   - type: HardpointIntegrity
     maxIntegrity: 1000
-    repairFuelCost: 20
     bypassEntryOnZero: true
   - type: Appearance
   - type: VehicleEnter
